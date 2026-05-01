@@ -3,7 +3,7 @@ export const navItems = [
   { label: "Candidates", value: "candidates", href: "/candidates" },
   { label: "Jobs", value: "jobs", href: "/jobs" },
   { label: "Pipeline", value: "pipeline", href: "/pipeline" },
-  { label: "Analytics", value: "analytics", href: "/analytics" }
+  { label: "Analytics", value: "analytics", href: "/analytics" },
 ];
 
 export const pipelineStages = [
@@ -13,14 +13,20 @@ export const pipelineStages = [
   "interview",
   "offer",
   "hired",
-  "rejected"
+  "rejected",
 ];
 
 export const employmentTypes = [
   "full-time",
   "part-time",
   "contract",
-  "internship"
+  "internship",
 ];
 
-export const experienceLevels = ["junior", "mid", "senior", "lead", "executive"];
+export const experienceLevels = [
+  "junior",
+  "mid",
+  "senior",
+  "lead",
+  "executive",
+];

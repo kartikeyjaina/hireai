@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 function EmptyState({
   title = "No archived searches yet",
   description = "Save filtered talent pools and AI-generated shortlists to compare hiring quality over time.",
-  actionLabel = "Create saved search"
+  actionLabel = "Create saved search",
 }) {
   return (
     <motion.div
@@ -18,7 +18,9 @@ function EmptyState({
         <Sparkles className="h-6 w-6" />
       </div>
       <h3 className="text-xl font-semibold text-foreground">{title}</h3>
-      <p className="mt-3 max-w-md text-sm text-muted-foreground">{description}</p>
+      <p className="mt-3 max-w-md text-sm text-muted-foreground">
+        {description}
+      </p>
       <Button variant="secondary" className="mt-6">
         {actionLabel}
       </Button>

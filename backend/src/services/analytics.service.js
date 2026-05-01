@@ -1,6 +1,7 @@
 import Application from "../models/application.model.js";
 import { APPLICATION_STAGES } from "../utils/constants.js";
 import { toObjectId } from "../utils/object-id.js";
+import { buildApplicationAccessFilter } from "./access-control.service.js";
 
 function round(value) {
   return Math.round(value * 100) / 100;
@@ -11,8 +12,8 @@ function differenceInDays(startDate, endDate) {
   return milliseconds / (1000 * 60 * 60 * 24);
 }
 
-export async function getHiringAnalytics(query) {
-  const filter = {};
+export async function getHiringAnalytics(query, actor) {
+  const filter = await buildApplicationAccessFilter(actor);
 
   if (query.jobId) {
     filter.job = toObjectId(query.jobId, "jobId");

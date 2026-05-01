@@ -32,7 +32,11 @@ function TopNav({ canCreateJob, onCreateJob, onLogout, onOpenSidebar, user }) {
             {user.role}
           </div>
         </div>
-        <Button variant="secondary" size="icon" onClick={() => navigate("/notifications")}>
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => navigate("/notifications")}
+        >
           <Bell className="h-4 w-4" />
         </Button>
         <Button variant="secondary" size="icon" onClick={onLogout}>

@@ -5,7 +5,13 @@ import ContentSkeleton from "@/components/content-skeleton";
 import MetricCard from "@/components/metric-card";
 import SectionHeader from "@/components/section-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { getOverview } from "@/lib/hireai-api";
 import { stageLabel } from "@/lib/format";
@@ -27,9 +33,24 @@ function OverviewPage({ mode = "recruiter" }) {
   const candidates = data?.candidates?.items || [];
   const applications = data?.applications?.items || [];
   const metrics = [
-    { label: "Open roles", value: String(jobs.filter((job) => job.status === "open").length), delta: `${jobs.length} total`, tone: "primary" },
-    { label: "Candidates", value: String(candidates.length), delta: "Structured profiles", tone: "success" },
-    { label: "Applications", value: String(applications.length), delta: "Live pipeline", tone: "accent" }
+    {
+      label: "Open roles",
+      value: String(jobs.filter((job) => job.status === "open").length),
+      delta: `${jobs.length} total`,
+      tone: "primary",
+    },
+    {
+      label: "Candidates",
+      value: String(candidates.length),
+      delta: "Structured profiles",
+      tone: "success",
+    },
+    {
+      label: "Applications",
+      value: String(applications.length),
+      delta: "Live pipeline",
+      tone: "accent",
+    },
   ];
 
   if (isLoading) {
@@ -70,19 +91,29 @@ function OverviewPage({ mode = "recruiter" }) {
         <Card>
           <CardHeader>
             <CardTitle>Recent applications</CardTitle>
-            <CardDescription>Latest candidate movement across the hiring funnel.</CardDescription>
+            <CardDescription>
+              Latest candidate movement across the hiring funnel.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             {applications.slice(0, 6).map((application) => (
-              <div key={application._id} className="rounded-[22px] border border-border/80 bg-secondary/45 px-4 py-4">
+              <div
+                key={application._id}
+                className="rounded-[22px] border border-border/80 bg-secondary/45 px-4 py-4"
+              >
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="font-medium text-foreground">
-                      {application.candidate?.firstName} {application.candidate?.lastName}
+                      {application.candidate?.firstName}{" "}
+                      {application.candidate?.lastName}
                     </div>
-                    <div className="text-sm text-muted-foreground">{application.job?.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {application.job?.title}
+                    </div>
                   </div>
-                  <div className="text-sm text-primary">{stageLabel(application.stage)}</div>
+                  <div className="text-sm text-primary">
+                    {stageLabel(application.stage)}
+                  </div>
                 </div>
               </div>
             ))}
@@ -97,7 +128,9 @@ function OverviewPage({ mode = "recruiter" }) {
         <Card>
           <CardHeader>
             <CardTitle>Flow health</CardTitle>
-            <CardDescription>Quick pulse on role throughput and recruiter momentum.</CardDescription>
+            <CardDescription>
+              Quick pulse on role throughput and recruiter momentum.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="rounded-[24px] border border-border/80 bg-secondary/45 p-5">

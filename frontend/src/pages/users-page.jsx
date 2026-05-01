@@ -4,9 +4,19 @@ import EmptyState from "@/components/empty-state";
 import SectionHeader from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
-import { deactivateUserRequest, getUsersRequest, updateUserRequest } from "@/lib/hireai-api";
+import {
+  deactivateUserRequest,
+  getUsersRequest,
+  updateUserRequest,
+} from "@/lib/hireai-api";
 
 const roles = ["admin", "recruiter", "interviewer"];
 
@@ -23,7 +33,9 @@ function UsersPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    refresh().catch(console.error).finally(() => setIsLoading(false));
+    refresh()
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, [token]);
 
   if (isLoading) {
@@ -37,7 +49,10 @@ function UsersPage() {
         title="User administration"
         description="Manage active users and role assignments across admins, recruiters, and interviewers."
         actions={
-          <Button variant="secondary" onClick={() => refresh().catch(console.error)}>
+          <Button
+            variant="secondary"
+            onClick={() => refresh().catch(console.error)}
+          >
             Refresh users
           </Button>
         }
@@ -61,7 +76,9 @@ function UsersPage() {
                   <div className="text-base font-semibold text-foreground">
                     {user.firstName} {user.lastName}
                   </div>
-                  <div className="text-sm text-muted-foreground">{user.email}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {user.email}
+                  </div>
                   <div className="mt-2 flex items-center gap-2">
                     <Badge tone={user.isActive ? "success" : "default"}>
                       {user.isActive ? "active" : "inactive"}
@@ -78,12 +95,16 @@ function UsersPage() {
                       const previousUsers = users;
                       setUsers((current) =>
                         current.map((item) =>
-                          item.id === user.id ? { ...item, role: nextRole } : item
-                        )
+                          item.id === user.id
+                            ? { ...item, role: nextRole }
+                            : item,
+                        ),
                       );
                       setIsSavingId(user.id);
                       try {
-                        await updateUserRequest(token, user.id, { role: nextRole });
+                        await updateUserRequest(token, user.id, {
+                          role: nextRole,
+                        });
                         await refresh();
                       } catch (error) {
                         console.error(error);
@@ -108,8 +129,10 @@ function UsersPage() {
                       const previousUsers = users;
                       setUsers((current) =>
                         current.map((item) =>
-                          item.id === user.id ? { ...item, isActive: false } : item
-                        )
+                          item.id === user.id
+                            ? { ...item, isActive: false }
+                            : item,
+                        ),
                       );
                       setIsSavingId(user.id);
                       try {

@@ -3,12 +3,12 @@ import { createJob, getJobById, listJobs, updateJob } from "../services/job.serv
 import { generateJobDescription } from "../services/ai.service.js";
 
 export const list = asyncHandler(async (request, response) => {
-  const result = await listJobs(request.query);
+  const result = await listJobs(request.query, request.user);
   response.status(200).json(result);
 });
 
 export const getById = asyncHandler(async (request, response) => {
-  const job = await getJobById(request.params.jobId);
+  const job = await getJobById(request.params.jobId, request.user);
   response.status(200).json({ job });
 });
 
@@ -18,7 +18,7 @@ export const create = asyncHandler(async (request, response) => {
 });
 
 export const update = asyncHandler(async (request, response) => {
-  const job = await updateJob(request.params.jobId, request.validatedBody);
+  const job = await updateJob(request.params.jobId, request.validatedBody, request.user);
   response.status(200).json({ job });
 });
 

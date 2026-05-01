@@ -6,17 +6,23 @@ import AppError from "../utils/app-error.js";
 import { toObjectId } from "../utils/object-id.js";
 import { parsePagination } from "../utils/validation.js";
 import { createNotifications } from "./notification.service.js";
+import {
+  buildApplicationAccessFilter,
+  buildCandidateAccessFilter,
+  buildInterviewAccessFilter,
+  buildJobAccessFilter
+} from "./access-control.service.js";
 
 const INTERVIEW_POPULATE = [
   { path: "application" },
   { path: "job" },
   { path: "candidate" },
-  { path: "interviewers", select: "firstName lastName email role" }
+  { path: "interviewers", select: "firstName lastName email role" },
 ];
 
-export async function listInterviews(query) {
+export async function listInterviews(query, actor) {
   const { page, limit, skip } = parsePagination(query);
-  const filter = {};
+  const filter = await buildInterviewAccessFilter(actor);
 
   if (query.applicationId) {
     filter.application = toObjectId(query.applicationId, "applicationId");
@@ -44,16 +50,18 @@ export async function listInterviews(query) {
       .sort({ scheduledAt: 1 })
       .skip(skip)
       .limit(limit),
-    Interview.countDocuments(filter)
+    Interview.countDocuments(filter),
   ]);
 
   return { items, pagination: { page, limit, total } };
 }
 
-export async function getInterviewById(interviewId) {
-  const interview = await Interview.findById(
-    toObjectId(interviewId, "interviewId")
-  ).populate(INTERVIEW_POPULATE);
+export async function getInterviewById(interviewId, actor) {
+  const accessFilter = await buildInterviewAccessFilter(actor);
+  const interview = await Interview.findOne({
+    _id: toObjectId(interviewId, "interviewId"),
+    ...accessFilter
+  }).populate(INTERVIEW_POPULATE);
 
   if (!interview) {
     throw new AppError("Interview not found", 404);
@@ -62,18 +70,24 @@ export async function getInterviewById(interviewId) {
   return interview;
 }
 
-export async function createInterview(payload) {
+export async function createInterview(payload, actor) {
   const applicationId = toObjectId(payload.application, "application");
   const candidateId = toObjectId(payload.candidate, "candidate");
   const jobId = toObjectId(payload.job, "job");
   const interviewerIds = (payload.interviewers || []).map((id) =>
-    toObjectId(id, "interviewer")
+    toObjectId(id, "interviewer"),
   );
+  const [applicationAccessFilter, candidateAccessFilter, jobAccessFilter] =
+    await Promise.all([
+      buildApplicationAccessFilter(actor),
+      buildCandidateAccessFilter(actor),
+      buildJobAccessFilter(actor)
+    ]);
 
   const [application, candidate, job] = await Promise.all([
-    Application.findById(applicationId),
-    Candidate.findById(candidateId),
-    Job.findById(jobId)
+    Application.findOne({ _id: applicationId, ...applicationAccessFilter }),
+    Candidate.findOne({ _id: candidateId, ...candidateAccessFilter }),
+    Job.findOne({ _id: jobId, ...jobAccessFilter })
   ]);
 
   if (!application) {
@@ -93,7 +107,7 @@ export async function createInterview(payload) {
     application: applicationId,
     candidate: candidateId,
     job: jobId,
-    interviewers: interviewerIds
+    interviewers: interviewerIds,
   });
 
   await createNotifications(
@@ -106,23 +120,23 @@ export async function createInterview(payload) {
       metadata: {
         interviewId: interview._id.toString(),
         candidateId: payload.candidate,
-        jobId: payload.job
-      }
-    }))
+        jobId: payload.job,
+      },
+    })),
   );
 
-  return getInterviewById(interview._id.toString());
+  return getInterviewById(interview._id.toString(), actor);
 }
 
-export async function updateInterview(interviewId, payload) {
-  const interview = await getInterviewById(interviewId);
+export async function updateInterview(interviewId, payload, actor) {
+  const interview = await getInterviewById(interviewId, actor);
   const nextInterviewers = payload.interviewers
     ? payload.interviewers.map((id) => toObjectId(id, "interviewer"))
     : interview.interviewers;
 
   Object.assign(interview, {
     ...payload,
-    interviewers: nextInterviewers
+    interviewers: nextInterviewers,
   });
 
   await interview.save();
@@ -137,10 +151,10 @@ export async function updateInterview(interviewId, payload) {
       metadata: {
         interviewId: interview._id.toString(),
         candidateId: interview.candidate._id.toString(),
-        jobId: interview.job._id.toString()
-      }
-    }))
+        jobId: interview.job._id.toString(),
+      },
+    })),
   );
 
-  return getInterviewById(interview._id.toString());
+  return getInterviewById(interview._id.toString(), actor);
 }

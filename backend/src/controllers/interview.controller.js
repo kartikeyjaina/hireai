@@ -7,24 +7,25 @@ import {
 } from "../services/interview.service.js";
 
 export const list = asyncHandler(async (request, response) => {
-  const result = await listInterviews(request.query);
+  const result = await listInterviews(request.query, request.user);
   response.status(200).json(result);
 });
 
 export const getById = asyncHandler(async (request, response) => {
-  const interview = await getInterviewById(request.params.interviewId);
+  const interview = await getInterviewById(request.params.interviewId, request.user);
   response.status(200).json({ interview });
 });
 
 export const create = asyncHandler(async (request, response) => {
-  const interview = await createInterview(request.validatedBody);
+  const interview = await createInterview(request.validatedBody, request.user);
   response.status(201).json({ interview });
 });
 
 export const update = asyncHandler(async (request, response) => {
   const interview = await updateInterview(
     request.params.interviewId,
-    request.validatedBody
+    request.validatedBody,
+    request.user
   );
   response.status(200).json({ interview });
 });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as candidateController from "../controllers/candidate.controller.js";
 import { requireRole } from "../middleware/auth.middleware.js";
+import { resumeUploadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { uploadResume } from "../middleware/upload.middleware.js";
 import validateWith from "../middleware/validate.middleware.js";
 import { validateCandidate } from "../validators/domain.validator.js";
@@ -15,6 +16,7 @@ router.get("/:candidateId", candidateController.getById);
 router.post(
   "/upload-resume",
   requireRole("admin", "recruiter"),
+  resumeUploadRateLimit,
   uploadResume,
   candidateController.uploadResume
 );

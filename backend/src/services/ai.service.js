@@ -5,6 +5,8 @@ import AppError from "../utils/app-error.js";
 
 const CACHE_TTL_SECONDS = 60 * 60 * 6;
 const EMBEDDING_MODEL = "gemini-embedding-001";
+const DEFAULT_AI_TIMEOUT_MS = 25_000;
+const DEFAULT_AI_RETRIES = 2;
 
 const resumeSchema = {
   type: "object",
@@ -196,6 +198,11 @@ function createCacheKey(taskName, payload) {
 async function getCachedValue(cacheKey) {
   try {
     const redis = getRedisClient();
+
+    if (!redis) {
+      return null;
+    }
+
     const cached = await redis.get(cacheKey);
     return cached ? JSON.parse(cached) : null;
   } catch (error) {
@@ -207,6 +214,11 @@ async function getCachedValue(cacheKey) {
 async function setCachedValue(cacheKey, value, ttlSeconds = CACHE_TTL_SECONDS) {
   try {
     const redis = getRedisClient();
+
+    if (!redis) {
+      return;
+    }
+
     await redis.set(cacheKey, JSON.stringify(value), {
       EX: ttlSeconds
     });
@@ -221,6 +233,129 @@ function buildGenerationConfig(schema) {
     responseMimeType: "application/json",
     responseJsonSchema: schema
   };
+}
+
+function buildTimeoutError(taskName, timeoutMs) {
+  return new AppError(`AI timeout for ${taskName}`, 504, [
+    `The AI request exceeded ${timeoutMs}ms`
+  ]);
+}
+
+function withTimeout(promise, taskName, timeoutMs = DEFAULT_AI_TIMEOUT_MS) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(buildTimeoutError(taskName, timeoutMs));
+      }, timeoutMs);
+    })
+  ]);
+}
+
+function sanitizeModelJson(text) {
+  const value = String(text || "").trim();
+
+  if (value.startsWith("```") && value.endsWith("```")) {
+    return value.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  }
+
+  return value;
+}
+
+function parseJsonSafely(text, taskName) {
+  try {
+    return JSON.parse(sanitizeModelJson(text));
+  } catch (error) {
+    throw new AppError(`Invalid JSON returned for ${taskName}`, 502, [error.message]);
+  }
+}
+
+function validateShapeWithSchema(schema, payload, path = "root") {
+  if (!schema || !payload || typeof payload !== "object") {
+    return false;
+  }
+
+  if (Array.isArray(schema.required)) {
+    for (const key of schema.required) {
+      if (payload[key] === undefined || payload[key] === null) {
+        return false;
+      }
+    }
+  }
+
+  const schemaProperties = schema.properties || {};
+
+  for (const [key, propertySchema] of Object.entries(schemaProperties)) {
+    if (payload[key] === undefined || payload[key] === null) {
+      continue;
+    }
+
+    const value = payload[key];
+
+    if (propertySchema.type === "array") {
+      if (!Array.isArray(value)) {
+        return false;
+      }
+
+      if (propertySchema.items?.type === "object") {
+        const itemSchema = {
+          type: "object",
+          properties: propertySchema.items.properties || {},
+          required: propertySchema.items.required || []
+        };
+
+        if (!value.every((item) => validateShapeWithSchema(itemSchema, item, `${path}.${key}`))) {
+          return false;
+        }
+      }
+    }
+
+    if (propertySchema.type === "object") {
+      if (!validateShapeWithSchema(propertySchema, value, `${path}.${key}`)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+export async function safeAiCall(taskName, fn, options = {}) {
+  const timeoutMs = Number(options.timeoutMs) || DEFAULT_AI_TIMEOUT_MS;
+  const retries = Math.max(Number(options.retries ?? DEFAULT_AI_RETRIES), 0);
+  let lastError;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await withTimeout(Promise.resolve().then(fn), taskName, timeoutMs);
+    } catch (error) {
+      lastError = error;
+      const details = [
+        `attempt=${attempt + 1}`,
+        `task=${taskName}`,
+        error?.message || "Unknown AI error"
+      ];
+
+      console.error("AI call failure", {
+        taskName,
+        attempt: attempt + 1,
+        retries,
+        message: error?.message,
+        stack: error?.stack,
+        context: options.context || null
+      });
+
+      if (attempt === retries) {
+        if (error instanceof AppError) {
+          throw new AppError(error.message, error.statusCode || 502, [...(error.details || []), ...details]);
+        }
+
+        throw new AppError(`AI call failed for ${taskName}`, 502, details);
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 function normalizeEmbeddingResponse(response) {
@@ -275,18 +410,34 @@ async function generateStructuredOutput({
   }
 
   try {
-    const client = getAiClient();
-    const response = await client.models.generateContent({
-      model: getModelName(),
-      contents: prompt,
-      config: buildGenerationConfig(schema)
-    });
+    const response = await safeAiCall(
+      taskName,
+      async () => {
+        const client = getAiClient();
+        return client.models.generateContent({
+          model: getModelName(),
+          contents: prompt,
+          config: buildGenerationConfig(schema)
+        });
+      },
+      {
+        context: {
+          cacheKey,
+          model: getModelName()
+        }
+      }
+    );
 
     if (!response?.text) {
       throw new AppError(`Gemini returned an empty response for ${taskName}`, 502);
     }
 
-    const parsed = JSON.parse(response.text);
+    const parsed = parseJsonSafely(response.text, taskName);
+
+    if (!validateShapeWithSchema(schema, parsed)) {
+      throw new AppError(`Gemini returned an invalid response shape for ${taskName}`, 502);
+    }
+
     await setCachedValue(cacheKey, parsed, ttlSeconds);
     return parsed;
   } catch (error) {
@@ -602,13 +753,24 @@ export async function generateEmbedding({
   }
 
   try {
-    const client = getAiClient();
-    const response = await client.models.embedContent({
-      model: EMBEDDING_MODEL,
-      contents: normalizedText,
-      taskType,
-      outputDimensionality: 768
-    });
+    const response = await safeAiCall(
+      "generateEmbedding",
+      async () => {
+        const client = getAiClient();
+        return client.models.embedContent({
+          model: EMBEDDING_MODEL,
+          contents: normalizedText,
+          taskType,
+          outputDimensionality: 768
+        });
+      },
+      {
+        context: {
+          taskType,
+          textLength: normalizedText.length
+        }
+      }
+    );
 
     const embedding = normalizeEmbeddingResponse(response);
     await setCachedValue(cacheKey, embedding, CACHE_TTL_SECONDS * 4);

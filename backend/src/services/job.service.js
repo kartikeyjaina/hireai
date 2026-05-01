@@ -3,15 +3,16 @@ import AppError from "../utils/app-error.js";
 import { toObjectId } from "../utils/object-id.js";
 import { parsePagination } from "../utils/validation.js";
 import { generateEmbedding } from "./ai.service.js";
+import { buildJobAccessFilter } from "./access-control.service.js";
 
 const JOB_POPULATE = [
   { path: "createdBy", select: "firstName lastName email role" },
   { path: "hiringManager", select: "firstName lastName email role" }
 ];
 
-export async function listJobs(query) {
+export async function listJobs(query, actor) {
   const { page, limit, skip } = parsePagination(query);
-  const filter = {};
+  const filter = await buildJobAccessFilter(actor);
 
   if (query.status) {
     filter.status = query.status;
@@ -33,8 +34,12 @@ export async function listJobs(query) {
   return { items, pagination: { page, limit, total } };
 }
 
-export async function getJobById(jobId) {
-  const job = await Job.findById(toObjectId(jobId, "jobId")).populate(JOB_POPULATE);
+export async function getJobById(jobId, actor) {
+  const accessFilter = await buildJobAccessFilter(actor);
+  const job = await Job.findOne({
+    _id: toObjectId(jobId, "jobId"),
+    ...accessFilter
+  }).populate(JOB_POPULATE);
 
   if (!job) {
     throw new AppError("Job not found", 404);
@@ -58,11 +63,11 @@ export async function createJob(payload, actorId) {
     embeddingUpdatedAt: new Date()
   });
 
-  return getJobById(job._id.toString());
+  return getJobById(job._id.toString(), { id: actorId, role: "admin" });
 }
 
-export async function updateJob(jobId, payload) {
-  const job = await getJobById(jobId);
+export async function updateJob(jobId, payload, actor) {
+  const job = await getJobById(jobId, actor);
   const nextTitle = payload.title ?? job.title;
   const nextDepartment = payload.department ?? job.department;
   const nextDescription = payload.description ?? job.description;
@@ -82,5 +87,5 @@ export async function updateJob(jobId, payload) {
     embeddingUpdatedAt: new Date()
   });
   await job.save();
-  return getJobById(job._id.toString());
+  return getJobById(job._id.toString(), actor);
 }

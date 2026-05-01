@@ -13,6 +13,7 @@ import commentRoutes from "./routes/comment.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import interviewRoutes from "./routes/interview.routes.js";
 import jobRoutes from "./routes/job.routes.js";
+import { aiRateLimit } from "./middleware/rate-limit.middleware.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
@@ -38,7 +39,7 @@ app.get("/", (_request, response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/health", healthRoutes);
-app.use("/api/ai", requireAuth, aiRoutes);
+app.use("/api/ai", requireAuth, aiRateLimit, aiRoutes);
 app.use("/api/analytics", requireAuth, analyticsRoutes);
 app.use("/api/users", requireAuth, userRoutes);
 app.use("/api/jobs", requireAuth, jobRoutes);

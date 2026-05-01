@@ -6,7 +6,7 @@ import {
   PanelLeftClose,
   Bell,
   CalendarClock,
-  Users
+  Users,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { NavLink, useLocation } from "react-router-dom";
@@ -21,7 +21,7 @@ const icons = {
   analytics: BarChart3,
   users: Users,
   interviews: CalendarClock,
-  notifications: Bell
+  notifications: Bell,
 };
 
 function DashboardSidebar({ mobileOpen, onNavigate, role }) {
@@ -32,7 +32,7 @@ function DashboardSidebar({ mobileOpen, onNavigate, role }) {
     <aside
       className={cn(
         "surface-panel fixed inset-y-4 left-4 z-40 w-[280px] overflow-hidden p-4 transition-transform duration-300 lg:static lg:inset-auto lg:w-full lg:translate-x-0",
-        mobileOpen ? "translate-x-0" : "-translate-x-[120%] lg:translate-x-0"
+        mobileOpen ? "translate-x-0" : "-translate-x-[120%] lg:translate-x-0",
       )}
     >
       <div className="soft-grid absolute inset-0 opacity-40" />
@@ -45,7 +45,9 @@ function DashboardSidebar({ mobileOpen, onNavigate, role }) {
             <div className="text-sm font-medium uppercase tracking-[0.18em] text-primary">
               HireAI
             </div>
-            <div className="text-sm text-muted-foreground">Hiring command center</div>
+            <div className="text-sm text-muted-foreground">
+              Hiring command center
+            </div>
           </div>
         </div>
 
@@ -68,7 +70,7 @@ function DashboardSidebar({ mobileOpen, onNavigate, role }) {
                     "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200",
                     active
                       ? "border-primary/35 bg-primary/12 text-foreground shadow-soft"
-                      : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-secondary/60 hover:text-foreground"
+                      : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-secondary/60 hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />

@@ -3,12 +3,21 @@ import { strFromU8, unzipSync } from "fflate";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import AppError from "./app-error.js";
 
+const MAX_RESUME_FILE_SIZE = 8 * 1024 * 1024;
+const MIN_PARSEABLE_TEXT_LENGTH = 200;
+const PARSE_FAILURE_MESSAGE =
+  "Resume could not be parsed. Please upload a valid file.";
+const supportedMimeTypes = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain"
+]);
 const DOCX_XML_PATTERN = /^word\/(document|header\d+|footer\d+)\.xml$/;
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   removeNSPrefix: true,
   trimValues: true,
-  textNodeName: "text"
+  textNodeName: "text",
 });
 
 function decodeXmlEntities(text) {
@@ -24,12 +33,53 @@ function normalizeExtractedText(text) {
   return String(text || "")
     .replace(/\r/g, "\n")
     .replace(/\u00a0/g, " ")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .split("\n")
     .map((line) => line.trim())
     .join("\n")
     .trim();
+}
+
+function isLikelyCorruptedText(text) {
+  const normalized = String(text || "");
+
+  if (!normalized) {
+    return true;
+  }
+
+  const replacementCharacterCount = (normalized.match(/\uFFFD/g) || []).length;
+  const printableAsciiCount = (normalized.match(/[A-Za-z0-9,.;:!?@()\-_/ ]/g) || []).length;
+  const totalLength = normalized.length;
+  const printableRatio = printableAsciiCount / totalLength;
+  const replacementRatio = replacementCharacterCount / totalLength;
+
+  return replacementRatio > 0.02 || printableRatio < 0.35;
+}
+
+function validateResumeFile(file) {
+  if (!file?.buffer || !file?.mimetype) {
+    throw new AppError("Resume file is required", 422);
+  }
+
+  if (!supportedMimeTypes.has(file.mimetype)) {
+    throw new AppError("Unsupported file type", 415);
+  }
+
+  if (!file.buffer.length || !file.size) {
+    throw new AppError("Resume file is empty", 422);
+  }
+
+  if (file.size > MAX_RESUME_FILE_SIZE) {
+    throw new AppError("Resume file exceeds the maximum allowed size", 413);
+  }
+}
+
+function assertExtractedTextQuality(text) {
+  if (!text || text.length < MIN_PARSEABLE_TEXT_LENGTH || isLikelyCorruptedText(text)) {
+    throw new AppError(PARSE_FAILURE_MESSAGE, 422);
+  }
 }
 
 function collectWordText(node) {
@@ -83,7 +133,7 @@ async function extractTextFromPdfBuffer(buffer) {
       data: new Uint8Array(buffer),
       useWorkerFetch: false,
       isEvalSupported: false,
-      disableFontFace: true
+      disableFontFace: true,
     });
 
     const pdf = await loadingTask.promise;
@@ -134,9 +184,7 @@ async function extractTextFromDocxBuffer(buffer) {
 }
 
 export async function extractTextFromFile(file) {
-  if (!file?.buffer || !file?.mimetype) {
-    throw new AppError("Resume file is required", 422);
-  }
+  validateResumeFile(file);
 
   if (file.mimetype === "application/pdf") {
     const text = await extractTextFromPdfBuffer(file.buffer);
@@ -144,6 +192,8 @@ export async function extractTextFromFile(file) {
     if (!text) {
       throw new AppError("No readable text was found in the PDF", 422);
     }
+
+    assertExtractedTextQuality(text);
 
     return text;
   }
@@ -158,6 +208,8 @@ export async function extractTextFromFile(file) {
       throw new AppError("No readable text was found in the DOCX file", 422);
     }
 
+    assertExtractedTextQuality(text);
+
     return text;
   }
 
@@ -167,6 +219,8 @@ export async function extractTextFromFile(file) {
     if (!text) {
       throw new AppError("The text file is empty", 422);
     }
+
+    assertExtractedTextQuality(text);
 
     return text;
   }

@@ -5,7 +5,13 @@ import EmptyState from "@/components/empty-state";
 import SectionHeader from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { getInterviews } from "@/lib/hireai-api";
 import { formatDateTime } from "@/lib/format";
@@ -17,14 +23,16 @@ function InterviewsPage() {
 
   async function refresh() {
     const response = await getInterviews(token, {
-      interviewerId: user.role === "interviewer" ? user.id : ""
+      interviewerId: user.role === "interviewer" ? user.id : "",
     });
     setInterviews(response.items || []);
   }
 
   useEffect(() => {
     setIsLoading(true);
-    refresh().catch(console.error).finally(() => setIsLoading(false));
+    refresh()
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, [token, user.id, user.role]);
 
   if (isLoading) {
@@ -38,7 +46,10 @@ function InterviewsPage() {
         title="Assigned interview schedule"
         description="Review upcoming sessions, jump into candidate detail, and keep feedback attached to candidate records."
         actions={
-          <Button variant="secondary" onClick={() => refresh().catch(console.error)}>
+          <Button
+            variant="secondary"
+            onClick={() => refresh().catch(console.error)}
+          >
             Refresh interviews
           </Button>
         }
@@ -48,7 +59,8 @@ function InterviewsPage() {
         <CardHeader>
           <CardTitle>Upcoming and completed interviews</CardTitle>
           <CardDescription>
-            Interviewers can see only their assigned interviews, while admins and recruiters can view all.
+            Interviewers can see only their assigned interviews, while admins
+            and recruiters can view all.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -59,16 +71,24 @@ function InterviewsPage() {
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <div className="text-base font-semibold text-foreground">{interview.title}</div>
+                  <div className="text-base font-semibold text-foreground">
+                    {interview.title}
+                  </div>
                   <div className="text-sm text-muted-foreground">
-                    {interview.job?.title} | {interview.candidate?.firstName} {interview.candidate?.lastName}
+                    {interview.job?.title} | {interview.candidate?.firstName}{" "}
+                    {interview.candidate?.lastName}
                   </div>
                   <div className="mt-2 text-sm text-muted-foreground">
-                    {formatDateTime(interview.scheduledAt)} | {interview.timezone}
+                    {formatDateTime(interview.scheduledAt)} |{" "}
+                    {interview.timezone}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge tone={interview.status === "completed" ? "success" : "default"}>
+                  <Badge
+                    tone={
+                      interview.status === "completed" ? "success" : "default"
+                    }
+                  >
                     {interview.status}
                   </Badge>
                   <Button asChild size="sm" variant="secondary">

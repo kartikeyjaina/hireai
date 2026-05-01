@@ -4,6 +4,12 @@ import Job from "../models/job.model.js";
 import AppError from "../utils/app-error.js";
 import { toObjectId } from "../utils/object-id.js";
 import { parsePagination } from "../utils/validation.js";
+import { createNotifications } from "./notification.service.js";
+import {
+  buildApplicationAccessFilter,
+  buildCandidateAccessFilter,
+  buildJobAccessFilter
+} from "./access-control.service.js";
 
 const APPLICATION_POPULATE = [
   { path: "candidate" },
@@ -12,9 +18,9 @@ const APPLICATION_POPULATE = [
   { path: "stageHistory.changedBy", select: "firstName lastName email role" }
 ];
 
-export async function listApplications(query) {
+export async function listApplications(query, actor) {
   const { page, limit, skip } = parsePagination(query);
-  const filter = {};
+  const filter = await buildApplicationAccessFilter(actor);
 
   if (query.jobId) {
     filter.job = toObjectId(query.jobId, "jobId");
@@ -48,8 +54,8 @@ export async function listApplications(query) {
   return { items, pagination: { page, limit, total } };
 }
 
-export async function getPipelineBoard(query) {
-  const filter = {};
+export async function getPipelineBoard(query, actor) {
+  const filter = await buildApplicationAccessFilter(actor);
 
   if (query.jobId) {
     filter.job = toObjectId(query.jobId, "jobId");
@@ -73,10 +79,12 @@ export async function getPipelineBoard(query) {
   }, {});
 }
 
-export async function getApplicationById(applicationId) {
-  const application = await Application.findById(
-    toObjectId(applicationId, "applicationId")
-  ).populate(APPLICATION_POPULATE);
+export async function getApplicationById(applicationId, actor) {
+  const accessFilter = await buildApplicationAccessFilter(actor);
+  const application = await Application.findOne({
+    _id: toObjectId(applicationId, "applicationId"),
+    ...accessFilter
+  }).populate(APPLICATION_POPULATE);
 
   if (!application) {
     throw new AppError("Application not found", 404);
@@ -85,13 +93,17 @@ export async function getApplicationById(applicationId) {
   return application;
 }
 
-export async function createApplication(payload, actorId) {
+export async function createApplication(payload, actorId, actor) {
   const candidateId = toObjectId(payload.candidate, "candidate");
   const jobId = toObjectId(payload.job, "job");
+  const [candidateAccessFilter, jobAccessFilter] = await Promise.all([
+    buildCandidateAccessFilter(actor),
+    buildJobAccessFilter(actor)
+  ]);
 
   const [candidate, job, existing] = await Promise.all([
-    Candidate.findById(candidateId),
-    Job.findById(jobId),
+    Candidate.findOne({ _id: candidateId, ...candidateAccessFilter }),
+    Job.findOne({ _id: jobId, ...jobAccessFilter }),
     Application.findOne({ candidate: candidateId, job: jobId })
   ]);
 
@@ -121,12 +133,28 @@ export async function createApplication(payload, actorId) {
     ]
   });
 
-  return getApplicationById(application._id.toString());
+  await createNotifications([
+    {
+      recipient: actorId,
+      type: "system",
+      title: "Candidate added to pipeline",
+      message: "A new application was created in the hiring pipeline.",
+      link: `/applications/${application._id.toString()}`,
+      metadata: {
+        applicationId: application._id.toString(),
+        candidateId: candidate._id.toString(),
+        jobId: job._id.toString()
+      }
+    }
+  ]);
+
+  return getApplicationById(application._id.toString(), actor);
 }
 
-export async function updateApplication(applicationId, payload, actorId) {
-  const application = await getApplicationById(applicationId);
+export async function updateApplication(applicationId, payload, actorId, actor) {
+  const application = await getApplicationById(applicationId, actor);
   const stageChanged = payload.stage && payload.stage !== application.stage;
+  const previousStage = application.stage;
 
   if (payload.owner !== undefined) {
     application.owner = payload.owner ? toObjectId(payload.owner, "owner") : null;
@@ -161,5 +189,27 @@ export async function updateApplication(applicationId, payload, actorId) {
   }
 
   await application.save();
-  return getApplicationById(application._id.toString());
+
+  if (stageChanged) {
+    const recipients = [application.owner?._id?.toString(), actorId]
+      .filter(Boolean)
+      .filter((value, index, array) => array.indexOf(value) === index);
+
+    await createNotifications(
+      recipients.map((recipient) => ({
+        recipient,
+        type: "application-stage-change",
+        title: "Application stage updated",
+        message: `Application moved from ${previousStage} to ${payload.stage}.`,
+        link: `/applications/${application._id.toString()}`,
+        metadata: {
+          applicationId: application._id.toString(),
+          previousStage,
+          nextStage: payload.stage
+        }
+      }))
+    );
+  }
+
+  return getApplicationById(application._id.toString(), actor);
 }

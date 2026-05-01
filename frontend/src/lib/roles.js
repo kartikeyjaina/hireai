@@ -1,7 +1,7 @@
 export const ROLE_HOME_PATHS = {
   admin: "/dashboard/admin",
   recruiter: "/dashboard/recruiter",
-  interviewer: "/dashboard/interviewer"
+  interviewer: "/dashboard/interviewer",
 };
 
 export function getRoleHomePath(role) {
@@ -21,7 +21,11 @@ export function getRoleNavItems(role) {
       { label: "Candidates", value: "candidates", href: "/candidates" },
       { label: "Pipeline", value: "pipeline", href: "/pipeline" },
       { label: "Users", value: "users", href: "/users" },
-      { label: "Notifications", value: "notifications", href: "/notifications" }
+      {
+        label: "Notifications",
+        value: "notifications",
+        href: "/notifications",
+      },
     ];
   }
 
@@ -29,7 +33,11 @@ export function getRoleNavItems(role) {
     return [
       { label: "Dashboard", value: "overview", href: "/dashboard/interviewer" },
       { label: "Interviews", value: "interviews", href: "/interviews" },
-      { label: "Notifications", value: "notifications", href: "/notifications" }
+      {
+        label: "Notifications",
+        value: "notifications",
+        href: "/notifications",
+      },
     ];
   }
 
@@ -39,6 +47,6 @@ export function getRoleNavItems(role) {
     { label: "Jobs", value: "jobs", href: "/jobs" },
     { label: "Pipeline", value: "pipeline", href: "/pipeline" },
     { label: "Analytics", value: "analytics", href: "/analytics" },
-    { label: "Notifications", value: "notifications", href: "/notifications" }
+    { label: "Notifications", value: "notifications", href: "/notifications" },
   ];
 }

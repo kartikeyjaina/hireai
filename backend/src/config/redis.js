@@ -1,34 +1,51 @@
 import { createClient } from "redis";
 
 let redisClient;
+let redisEnabled = false;
 
 export function getRedisClient() {
-  if (!redisClient) {
-    throw new Error("Redis client has not been initialized");
-  }
-
   return redisClient;
+}
+
+export function isRedisEnabled() {
+  return redisEnabled;
 }
 
 export async function connectRedis() {
   const redisUrl = process.env.REDIS_URL;
 
   if (!redisUrl) {
-    throw new Error("REDIS_URL is not configured");
+    console.warn("REDIS_URL is not configured. Continuing without Redis cache.");
+    redisEnabled = false;
+    redisClient = null;
+    return;
   }
 
   if (!/^redis:\/\//i.test(redisUrl)) {
-    throw new Error("REDIS_URL must start with redis://");
+    console.warn("REDIS_URL must start with redis://. Continuing without Redis cache.");
+    redisEnabled = false;
+    redisClient = null;
+    return;
   }
 
-  redisClient = createClient({
-    url: redisUrl
-  });
+  try {
+    redisClient = createClient({
+      url: redisUrl,
+      socket: {
+        reconnectStrategy: (retries) => Math.min(retries * 150, 2000)
+      }
+    });
 
-  redisClient.on("error", (error) => {
-    console.error("Redis client error", error);
-  });
+    redisClient.on("error", (error) => {
+      console.error("Redis client error", error);
+    });
 
-  await redisClient.connect();
-  console.log("Redis connected");
+    await redisClient.connect();
+    redisEnabled = true;
+    console.log("Redis connected");
+  } catch (error) {
+    redisEnabled = false;
+    redisClient = null;
+    console.warn("Redis connection failed. Continuing without Redis cache.", error.message);
+  }
 }

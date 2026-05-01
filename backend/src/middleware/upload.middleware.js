@@ -31,4 +31,13 @@ const upload = multer({
   }
 });
 
-export const uploadResume = upload.single("resume");
+export const uploadResume = [
+  upload.single("resume"),
+  (request, _response, next) => {
+    if (!request.file || !request.file.size) {
+      return next(new AppError("Resume file is required and cannot be empty", 422));
+    }
+
+    return next();
+  }
+];

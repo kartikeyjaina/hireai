@@ -16,7 +16,7 @@ function SignupPage() {
     lastName: "",
     email: "",
     password: "",
-    role: "recruiter"
+    role: "recruiter",
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
@@ -27,24 +27,24 @@ function SignupPage() {
 
     setValues((current) => ({
       ...current,
-      [name]: value
+      [name]: value,
     }));
 
     setErrors((current) => ({
       ...current,
-      [name]: ""
+      [name]: "",
     }));
   }
 
   function updateRole(role) {
     setValues((current) => ({
       ...current,
-      role
+      role,
     }));
 
     setErrors((current) => ({
       ...current,
-      role: ""
+      role: "",
     }));
   }
 
@@ -85,7 +85,10 @@ function SignupPage() {
           footer={
             <>
               Already have access?{" "}
-              <Link className="text-primary transition hover:text-primary/80" to="/login">
+              <Link
+                className="text-primary transition hover:text-primary/80"
+                to="/login"
+              >
                 Sign in
               </Link>
             </>

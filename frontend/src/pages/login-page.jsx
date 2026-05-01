@@ -12,7 +12,7 @@ function LoginPage() {
   const { login } = useAuth();
   const [values, setValues] = useState({
     email: "",
-    password: ""
+    password: "",
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
@@ -23,12 +23,12 @@ function LoginPage() {
 
     setValues((current) => ({
       ...current,
-      [name]: value
+      [name]: value,
     }));
 
     setErrors((current) => ({
       ...current,
-      [name]: ""
+      [name]: "",
     }));
   }
 
@@ -69,7 +69,10 @@ function LoginPage() {
           footer={
             <>
               New to HireAI?{" "}
-              <Link className="text-primary transition hover:text-primary/80" to="/signup">
+              <Link
+                className="text-primary transition hover:text-primary/80"
+                to="/signup"
+              >
                 Create an account
               </Link>
             </>

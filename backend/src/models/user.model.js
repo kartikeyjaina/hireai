@@ -8,14 +8,14 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
       minlength: 2,
-      maxlength: 50
+      maxlength: 50,
     },
     lastName: {
       type: String,
       required: true,
       trim: true,
       minlength: 2,
-      maxlength: 50
+      maxlength: 50,
     },
     email: {
       type: String,
@@ -24,32 +24,32 @@ const userSchema = new mongoose.Schema(
       trim: true,
       validate: {
         validator: validator.isEmail,
-        message: "Email address is invalid"
-      }
+        message: "Email address is invalid",
+      },
     },
     passwordHash: {
       type: String,
-      required: true
+      required: true,
     },
     role: {
       type: String,
       enum: ["admin", "recruiter", "interviewer"],
       default: "recruiter",
-      required: true
+      required: true,
     },
     isActive: {
       type: Boolean,
-      default: true
+      default: true,
     },
     lastLoginAt: {
       type: Date,
-      default: null
-    }
+      default: null,
+    },
   },
   {
     timestamps: true,
-    versionKey: false
-  }
+    versionKey: false,
+  },
 );
 
 userSchema.index({ email: 1 }, { unique: true });
@@ -65,7 +65,7 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     isActive: this.isActive,
     lastLoginAt: this.lastLoginAt,
     createdAt: this.createdAt,
-    updatedAt: this.updatedAt
+    updatedAt: this.updatedAt,
   };
 };
 
