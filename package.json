@@ -1,0 +1,27 @@
+{
+  "name": "hireai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HireAI monorepo for the frontend and backend applications.",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "build": "npm run build --workspace frontend && npm run build --workspace backend",
+    "start": "npm run start --workspace backend",
+    "lint": "npm run lint --workspace frontend && npm run lint --workspace backend",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

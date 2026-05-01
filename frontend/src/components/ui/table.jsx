@@ -1,0 +1,47 @@
+import { cn } from "@/lib/utils";
+
+function Table({ className, ...props }) {
+  return (
+    <div className="w-full overflow-hidden rounded-[24px] border border-border/80 bg-card/80">
+      <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
+    </div>
+  );
+}
+
+function TableHeader({ className, ...props }) {
+  return <thead className={cn("bg-secondary/50", className)} {...props} />;
+}
+
+function TableBody({ className, ...props }) {
+  return <tbody className={cn("[&_tr:last-child]:border-0", className)} {...props} />;
+}
+
+function TableRow({ className, ...props }) {
+  return (
+    <tr
+      className={cn(
+        "border-b border-border/80 transition-colors hover:bg-secondary/40",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function TableHead({ className, ...props }) {
+  return (
+    <th
+      className={cn(
+        "h-12 px-5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function TableCell({ className, ...props }) {
+  return <td className={cn("px-5 py-4 align-middle", className)} {...props} />;
+}
+
+export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow };

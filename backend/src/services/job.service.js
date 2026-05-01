@@ -1,0 +1,86 @@
+import Job from "../models/job.model.js";
+import AppError from "../utils/app-error.js";
+import { toObjectId } from "../utils/object-id.js";
+import { parsePagination } from "../utils/validation.js";
+import { generateEmbedding } from "./ai.service.js";
+
+const JOB_POPULATE = [
+  { path: "createdBy", select: "firstName lastName email role" },
+  { path: "hiringManager", select: "firstName lastName email role" }
+];
+
+export async function listJobs(query) {
+  const { page, limit, skip } = parsePagination(query);
+  const filter = {};
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  if (query.department) {
+    filter.department = query.department;
+  }
+
+  const [items, total] = await Promise.all([
+    Job.find(filter)
+      .populate(JOB_POPULATE)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Job.countDocuments(filter)
+  ]);
+
+  return { items, pagination: { page, limit, total } };
+}
+
+export async function getJobById(jobId) {
+  const job = await Job.findById(toObjectId(jobId, "jobId")).populate(JOB_POPULATE);
+
+  if (!job) {
+    throw new AppError("Job not found", 404);
+  }
+
+  return job;
+}
+
+export async function createJob(payload, actorId) {
+  const semanticEmbedding = await generateEmbedding({
+    text: `${payload.title}\n${payload.department}\n${payload.description}\n${(payload.skills || []).join(", ")}`
+  });
+
+  const job = await Job.create({
+    ...payload,
+    createdBy: toObjectId(actorId, "actorId"),
+    hiringManager: payload.hiringManager
+      ? toObjectId(payload.hiringManager, "hiringManager")
+      : null,
+    semanticEmbedding,
+    embeddingUpdatedAt: new Date()
+  });
+
+  return getJobById(job._id.toString());
+}
+
+export async function updateJob(jobId, payload) {
+  const job = await getJobById(jobId);
+  const nextTitle = payload.title ?? job.title;
+  const nextDepartment = payload.department ?? job.department;
+  const nextDescription = payload.description ?? job.description;
+  const nextSkills = payload.skills ?? job.skills;
+  const semanticEmbedding = await generateEmbedding({
+    text: `${nextTitle}\n${nextDepartment}\n${nextDescription}\n${(nextSkills || []).join(", ")}`
+  });
+
+  Object.assign(job, {
+    ...payload,
+    hiringManager: payload.hiringManager
+      ? toObjectId(payload.hiringManager, "hiringManager")
+      : payload.hiringManager === null
+        ? null
+        : job.hiringManager,
+    semanticEmbedding,
+    embeddingUpdatedAt: new Date()
+  });
+  await job.save();
+  return getJobById(job._id.toString());
+}

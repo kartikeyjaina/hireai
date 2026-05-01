@@ -1,0 +1,43 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "build": "node -e \"console.log('Backend build step not required for plain Node.js runtime')\"",
+    "lint": "node -e \"console.log('Lint configuration will be added in a later phase')\""
+  },
+  "dependencies": {
+    "@google/genai": "^1.16.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.18.1",
+    "lodash.includes": "^4.3.0",
+    "lodash.isarray": "^3.0.4",
+    "lodash.isboolean": "^3.0.3",
+    "lodash.isdate": "^4.0.1",
+    "lodash.isfunction": "^3.0.9",
+    "lodash.isinteger": "^4.0.4",
+    "lodash.isnumber": "^3.0.3",
+    "lodash.isplainobject": "^4.0.6",
+    "lodash.isstring": "^4.0.1",
+    "lodash.isundefined": "^3.0.1",
+    "mammoth": "^1.8.0",
+    "mongoose": "^8.6.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
+    "redis": "^4.7.0",
+    "validator": "^13.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
