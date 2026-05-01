@@ -28,7 +28,7 @@ function DashboardShell() {
           <div className="min-w-0">
             <TopNav
               canCreateJob={canCreateJobs(user?.role)}
-              onCreateJob={() => navigate("/jobs")}
+              onCreateJob={() => navigate("/dashboard/jobs")}
               onLogout={logout}
               onOpenSidebar={() => setSidebarOpen(true)}
               user={user}

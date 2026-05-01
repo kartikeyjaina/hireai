@@ -2,7 +2,8 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
-import { requireAuth } from "./middleware/auth.middleware.js";
+import { requireAuth, requireRole } from "./middleware/auth.middleware.js";
+import publicRoutes from "./routes/public.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
 import errorHandler from "./middleware/error.middleware.js";
@@ -39,15 +40,16 @@ app.get("/", (_request, response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/health", healthRoutes);
+app.use("/api/public", publicRoutes);
 app.use("/api/ai", requireAuth, aiRateLimit, aiRoutes);
-app.use("/api/analytics", requireAuth, analyticsRoutes);
-app.use("/api/users", requireAuth, userRoutes);
-app.use("/api/jobs", requireAuth, jobRoutes);
-app.use("/api/candidates", requireAuth, candidateRoutes);
-app.use("/api/applications", requireAuth, applicationRoutes);
-app.use("/api/interviews", requireAuth, interviewRoutes);
-app.use("/api/comments", requireAuth, commentRoutes);
-app.use("/api/notifications", requireAuth, notificationRoutes);
+app.use("/api/analytics", requireAuth, requireRole("admin", "recruiter", "interviewer"), analyticsRoutes);
+app.use("/api/users", requireAuth, requireRole("admin", "recruiter", "interviewer"), userRoutes);
+app.use("/api/jobs", requireAuth, requireRole("admin", "recruiter", "interviewer"), jobRoutes);
+app.use("/api/candidates", requireAuth, requireRole("admin", "recruiter", "interviewer"), candidateRoutes);
+app.use("/api/applications", requireAuth, requireRole("admin", "recruiter", "interviewer"), applicationRoutes);
+app.use("/api/interviews", requireAuth, requireRole("admin", "recruiter", "interviewer"), interviewRoutes);
+app.use("/api/comments", requireAuth, requireRole("admin", "recruiter", "interviewer"), commentRoutes);
+app.use("/api/notifications", requireAuth, requireRole("admin", "recruiter", "interviewer"), notificationRoutes);
 app.use(errorHandler);
 
 export default app;

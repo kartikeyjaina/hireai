@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthFormShell from "@/components/auth/auth-form-shell";
 import AuthInput from "@/components/auth/auth-input";
 import AuthLayout from "@/components/auth/auth-layout";
-import RoleSelector from "@/components/auth/role-selector";
 import { useAuth } from "@/context/auth-context";
 import { getRoleHomePath } from "@/lib/roles";
 import { validateSignupForm } from "@/lib/validation";
@@ -16,7 +15,7 @@ function SignupPage() {
     lastName: "",
     email: "",
     password: "",
-    role: "recruiter",
+    role: "candidate",
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
@@ -33,18 +32,6 @@ function SignupPage() {
     setErrors((current) => ({
       ...current,
       [name]: "",
-    }));
-  }
-
-  function updateRole(role) {
-    setValues((current) => ({
-      ...current,
-      role,
-    }));
-
-    setErrors((current) => ({
-      ...current,
-      role: "",
     }));
   }
 
@@ -73,15 +60,14 @@ function SignupPage() {
 
   return (
     <AuthLayout
-      title="Create your workspace account"
-      subtitle="Set up secure access for admins, recruiters, and interviewers across the hiring team."
+      title="Create your candidate account"
+      subtitle="Set up a secure profile so you can browse published roles and submit applications."
       form={
         <AuthFormShell
           error={serverError}
-          formError={errors.role}
           isSubmitting={isSubmitting}
           onSubmit={handleSubmit}
-          submitLabel="Create account"
+          submitLabel="Create candidate account"
           footer={
             <>
               Already have access?{" "}
@@ -119,10 +105,10 @@ function SignupPage() {
           <AuthInput
             autoComplete="email"
             error={errors.email}
-            label="Work email"
+            label="Email"
             name="email"
             onChange={updateField}
-            placeholder="team@company.com"
+            placeholder="you@example.com"
             type="email"
             value={values.email}
           />
@@ -136,7 +122,6 @@ function SignupPage() {
             type="password"
             value={values.password}
           />
-          <RoleSelector onChange={updateRole} value={values.role} />
         </AuthFormShell>
       }
     />

@@ -33,8 +33,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "recruiter", "interviewer"],
-      default: "recruiter",
+      enum: ["admin", "recruiter", "interviewer", "candidate"],
+      default: "candidate",
       required: true,
     },
     isActive: {

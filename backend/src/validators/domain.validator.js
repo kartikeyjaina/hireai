@@ -249,3 +249,25 @@ export function validateNotification(body) {
         : {}
   });
 }
+
+export function validatePublicApplication(body) {
+  const errors = [];
+  const firstName = normalizeString(body.firstName);
+  const lastName = normalizeString(body.lastName);
+  const email = normalizeString(body.email).toLowerCase();
+  const phone = normalizeOptionalString(body.phone);
+  const jobId = normalizeString(body.jobId);
+
+  if (!isNonEmptyString(jobId, 1)) invalid("jobId is required", errors);
+  if (!isNonEmptyString(firstName, 2)) invalid("First name must be at least 2 characters", errors);
+  if (!isNonEmptyString(lastName, 2)) invalid("Last name must be at least 2 characters", errors);
+  if (!validator.isEmail(email || "")) invalid("Enter a valid email address", errors);
+
+  return createResult(errors, {
+    jobId,
+    firstName,
+    lastName,
+    email,
+    phone
+  });
+}

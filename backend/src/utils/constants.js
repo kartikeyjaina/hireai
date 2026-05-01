@@ -1,6 +1,6 @@
-export const USER_ROLES = ["admin", "recruiter", "interviewer"];
+export const USER_ROLES = ["admin", "recruiter", "interviewer", "candidate"];
 
-export const JOB_STATUSES = ["draft", "open", "paused", "closed"];
+export const JOB_STATUSES = ["draft", "open", "paused", "closed", "published"];
 export const EMPLOYMENT_TYPES = [
   "full-time",
   "part-time",

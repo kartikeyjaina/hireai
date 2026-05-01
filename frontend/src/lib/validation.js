@@ -1,4 +1,4 @@
-const VALID_ROLES = ["admin", "recruiter", "interviewer"];
+const VALID_ROLES = ["admin", "recruiter", "interviewer", "candidate"];
 
 export function validateLoginForm(values) {
   const errors = {};

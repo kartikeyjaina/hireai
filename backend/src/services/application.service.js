@@ -93,13 +93,20 @@ export async function getApplicationById(applicationId, actor) {
   return application;
 }
 
-export async function createApplication(payload, actorId, actor) {
+export async function createApplication(payload, actorId, actor, options = {}) {
+  const {
+    skipAccessChecks = false,
+    skipNotifications = false,
+    returnRaw = false
+  } = options;
   const candidateId = toObjectId(payload.candidate, "candidate");
   const jobId = toObjectId(payload.job, "job");
-  const [candidateAccessFilter, jobAccessFilter] = await Promise.all([
-    buildCandidateAccessFilter(actor),
-    buildJobAccessFilter(actor)
-  ]);
+  const [candidateAccessFilter, jobAccessFilter] = skipAccessChecks
+    ? [{}, {}]
+    : await Promise.all([
+        buildCandidateAccessFilter(actor),
+        buildJobAccessFilter(actor)
+      ]);
 
   const [candidate, job, existing] = await Promise.all([
     Candidate.findOne({ _id: candidateId, ...candidateAccessFilter }),
@@ -133,20 +140,26 @@ export async function createApplication(payload, actorId, actor) {
     ]
   });
 
-  await createNotifications([
-    {
-      recipient: actorId,
-      type: "system",
-      title: "Candidate added to pipeline",
-      message: "A new application was created in the hiring pipeline.",
-      link: `/applications/${application._id.toString()}`,
-      metadata: {
-        applicationId: application._id.toString(),
-        candidateId: candidate._id.toString(),
-        jobId: job._id.toString()
+  if (!skipNotifications) {
+    await createNotifications([
+      {
+        recipient: actorId,
+        type: "system",
+        title: "Candidate added to pipeline",
+        message: "A new application was created in the hiring pipeline.",
+        link: `/applications/${application._id.toString()}`,
+        metadata: {
+          applicationId: application._id.toString(),
+          candidateId: candidate._id.toString(),
+          jobId: job._id.toString()
+        }
       }
-    }
-  ]);
+    ]);
+  }
+
+  if (returnRaw) {
+    return application;
+  }
 
   return getApplicationById(application._id.toString(), actor);
 }

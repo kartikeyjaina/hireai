@@ -159,7 +159,8 @@ export async function getCandidateProfile(candidateId, actor) {
   };
 }
 
-export async function createCandidate(payload, actorId) {
+export async function createCandidate(payload, actorId, options = {}) {
+  const { skipNotification = false, returnRaw = false } = options;
   const embeddingText = [
     payload.firstName,
     payload.lastName,
@@ -178,16 +179,22 @@ export async function createCandidate(payload, actorId) {
     embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
   });
 
-  await createNotification({
-    recipient: actorId,
-    type: "system",
-    title: "Candidate added",
-    message: `${candidate.firstName} ${candidate.lastName} was added to your talent pipeline.`,
-    link: `/candidates/${candidate._id.toString()}`,
-    metadata: {
-      candidateId: candidate._id.toString(),
-    },
-  });
+  if (!skipNotification) {
+    await createNotification({
+      recipient: actorId,
+      type: "system",
+      title: "Candidate added",
+      message: `${candidate.firstName} ${candidate.lastName} was added to your talent pipeline.`,
+      link: `/candidates/${candidate._id.toString()}`,
+      metadata: {
+        candidateId: candidate._id.toString(),
+      },
+    });
+  }
+
+  if (returnRaw) {
+    return candidate;
+  }
 
   return getCandidateById(candidate._id.toString(), {
     id: actorId,

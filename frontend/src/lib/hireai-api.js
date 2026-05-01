@@ -25,6 +25,21 @@ export function getJobs(token) {
   });
 }
 
+export function getPublicJobs() {
+  return apiRequest("/public/jobs");
+}
+
+export function getPublicJob(jobId) {
+  return apiRequest(`/public/jobs/${jobId}`);
+}
+
+export function submitPublicApplication(formData) {
+  return apiRequest("/public/apply", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export function createJob(token, payload) {
   return apiRequest("/jobs", {
     method: "POST",
@@ -172,6 +187,14 @@ export function getInterviews(token, params = {}) {
 
 export function createInterviewRequest(token, payload) {
   return apiRequest("/interviews", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateInterviewQuestionsRequest(token, payload) {
+  return apiRequest("/ai/generate-interview-questions", {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify(payload),

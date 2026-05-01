@@ -1,7 +1,7 @@
 export const navItems = [
   { label: "Overview", value: "overview", href: "/dashboard/recruiter" },
   { label: "Candidates", value: "candidates", href: "/candidates" },
-  { label: "Jobs", value: "jobs", href: "/jobs" },
+  { label: "Jobs", value: "jobs", href: "/dashboard/jobs" },
   { label: "Pipeline", value: "pipeline", href: "/pipeline" },
   { label: "Analytics", value: "analytics", href: "/analytics" },
 ];

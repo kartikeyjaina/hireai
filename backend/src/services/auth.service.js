@@ -47,7 +47,7 @@ export async function registerUser(payload) {
     lastName: payload.lastName.trim(),
     email: normalizedEmail,
     passwordHash,
-    role: payload.role
+    role: payload.role || "candidate"
   });
 
   return {

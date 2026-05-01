@@ -18,7 +18,7 @@ import {
   updateUserRequest,
 } from "@/lib/hireai-api";
 
-const roles = ["admin", "recruiter", "interviewer"];
+const roles = ["admin", "recruiter", "interviewer", "candidate"];
 
 function UsersPage() {
   const { token } = useAuth();

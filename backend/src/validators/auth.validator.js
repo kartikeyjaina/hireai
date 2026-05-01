@@ -1,6 +1,6 @@
 import validator from "validator";
 
-const roles = ["admin", "recruiter", "interviewer"];
+const roles = ["admin", "recruiter", "interviewer", "candidate"];
 
 function normalizeWhitespace(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -11,7 +11,7 @@ export function validateSignup(body) {
   const lastName = normalizeWhitespace(body.lastName);
   const email = normalizeWhitespace(body.email).toLowerCase();
   const password = typeof body.password === "string" ? body.password : "";
-  const role = normalizeWhitespace(body.role).toLowerCase();
+  const role = normalizeWhitespace(body.role).toLowerCase() || "candidate";
   const errors = [];
 
   if (firstName.length < 2) {
@@ -37,7 +37,7 @@ export function validateSignup(body) {
   }
 
   if (!roles.includes(role)) {
-    errors.push("Role must be admin, recruiter, or interviewer");
+    errors.push("Role must be admin, recruiter, interviewer, or candidate");
   }
 
   return errors.length
