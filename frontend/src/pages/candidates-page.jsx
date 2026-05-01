@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ContentSkeleton from "@/components/content-skeleton";
+import EmptyState from "@/components/empty-state";
 import ResumeUploadCard from "@/components/resume-upload-card";
 import SectionHeader from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import {
   getCandidates,
   getJobs,
   rankCandidatesForJobRequest,
-  semanticSearchCandidatesRequest
+  semanticSearchCandidatesRequest,
 } from "@/lib/hireai-api";
 import { formatRelativeDate } from "@/lib/format";
 
@@ -27,6 +34,7 @@ function CandidatesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isRanking, setIsRanking] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => {
     setIsLoading(true);
@@ -38,6 +46,50 @@ function CandidatesPage() {
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, [token]);
+
+  useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+    const hasSearchContext = Boolean(trimmedQuery || searchJobId);
+
+    if (!hasSearchContext) {
+      setSearchResults([]);
+      setSearchError("");
+      setIsSearching(false);
+      return undefined;
+    }
+
+    setSearchError("");
+    setIsSearching(true);
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      semanticSearchCandidatesRequest(token, {
+        query: trimmedQuery,
+        jobId: searchJobId,
+      })
+        .then((response) => {
+          if (!cancelled) {
+            setSearchResults(response.items || []);
+          }
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            setSearchResults([]);
+            setSearchError(error.message);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setIsSearching(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [token, searchQuery, searchJobId]);
 
   if (isLoading) {
     return <ContentSkeleton />;
@@ -58,7 +110,10 @@ function CandidatesPage() {
               }
               setIsRanking(true);
               try {
-                const response = await rankCandidatesForJobRequest(token, searchJobId);
+                const response = await rankCandidatesForJobRequest(
+                  token,
+                  searchJobId,
+                );
                 setRankingResults(response.items);
               } finally {
                 setIsRanking(false);
@@ -86,7 +141,8 @@ function CandidatesPage() {
           <CardHeader>
             <CardTitle>Last parsed profile</CardTitle>
             <CardDescription>
-              Review the latest structured output generated from an uploaded resume.
+              Review the latest structured output generated from an uploaded
+              resume.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -97,15 +153,19 @@ function CandidatesPage() {
                 </div>
                 <p>{uploadResult.parsed.summary}</p>
                 <div className="flex flex-wrap gap-2">
-                  {(uploadResult.parsed.skills || []).slice(0, 8).map((skill) => (
-                    <Badge key={skill} tone="primary">
-                      {skill}
-                    </Badge>
-                  ))}
+                  {(uploadResult.parsed.skills || [])
+                    .slice(0, 8)
+                    .map((skill) => (
+                      <Badge key={skill} tone="primary">
+                        {skill}
+                      </Badge>
+                    ))}
                 </div>
                 <div className="rounded-[22px] border border-border/80 bg-secondary/45 px-4 py-4 text-sm text-muted-foreground">
                   Candidate record created successfully
-                  {uploadResult.application ? " and added to the selected job pipeline." : "."}
+                  {uploadResult.application
+                    ? " and added to the selected job pipeline."
+                    : "."}
                 </div>
               </>
             ) : (
@@ -121,11 +181,12 @@ function CandidatesPage() {
         <CardHeader>
           <CardTitle>Semantic search and AI ranking</CardTitle>
           <CardDescription>
-            Use Gemini embeddings for semantic matching, then compare AI-assisted rank order for a selected role.
+            Use Gemini embeddings for semantic matching, then compare
+            AI-assisted rank order for a selected role.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px_auto]">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -148,10 +209,13 @@ function CandidatesPage() {
               onClick={async () => {
                 setIsSearching(true);
                 try {
-                  const response = await semanticSearchCandidatesRequest(token, {
-                    query: searchQuery,
-                    jobId: searchJobId
-                  });
+                  const response = await semanticSearchCandidatesRequest(
+                    token,
+                    {
+                      query: searchQuery,
+                      jobId: searchJobId,
+                    },
+                  );
                   setSearchResults(response.items);
                 } finally {
                   setIsSearching(false);
@@ -166,7 +230,10 @@ function CandidatesPage() {
           {searchResults.length ? (
             <div className="grid gap-3">
               {searchResults.map((result) => (
-                <div key={result.candidate._id} className="rounded-[22px] border border-border/80 bg-secondary/40 p-4">
+                <div
+                  key={result.candidate._id}
+                  className="rounded-[22px] border border-border/80 bg-secondary/40 p-4"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-medium text-foreground">
@@ -191,20 +258,47 @@ function CandidatesPage() {
             </div>
           ) : null}
 
+          {searchError ? (
+            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-red-100">
+              {searchError}
+            </div>
+          ) : null}
+
+          {!searchResults.length &&
+          !isSearching &&
+          (searchQuery.trim() || searchJobId) ? (
+            <EmptyState
+              title="No candidates matched"
+              description="Try a broader term, clear the job context, or search by a stronger skill signal."
+              actionLabel="Adjust search"
+              onAction={() => {
+                setSearchQuery("");
+                setSearchJobId("");
+              }}
+            />
+          ) : null}
+
           {rankingResults.length ? (
             <div className="grid gap-3">
               {rankingResults.slice(0, 10).map((result, index) => (
-                <div key={result.candidate._id} className="rounded-[22px] border border-border/80 bg-secondary/40 p-4">
+                <div
+                  key={result.candidate._id}
+                  className="rounded-[22px] border border-border/80 bg-secondary/40 p-4"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-medium text-foreground">
-                        {index + 1}. {result.candidate.firstName} {result.candidate.lastName}
+                        {index + 1}. {result.candidate.firstName}{" "}
+                        {result.candidate.lastName}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        AI {result.aiScore.score} | Semantic {(result.semanticScore * 100).toFixed(1)}
+                        AI {result.aiScore.score} | Semantic{" "}
+                        {(result.semanticScore * 100).toFixed(1)}
                       </div>
                     </div>
-                    <div className="text-sm text-primary">{result.combinedScore} combined</div>
+                    <div className="text-sm text-primary">
+                      {result.combinedScore} combined
+                    </div>
                   </div>
                 </div>
               ))}
@@ -217,7 +311,8 @@ function CandidatesPage() {
         <CardHeader>
           <CardTitle>Candidate directory</CardTitle>
           <CardDescription>
-            Structured candidate records stored from direct creation and resume ingestion.
+            Structured candidate records stored from direct creation and resume
+            ingestion.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -233,7 +328,8 @@ function CandidatesPage() {
                     {candidate.firstName} {candidate.lastName}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {candidate.currentTitle || "Candidate profile"} | {candidate.email}
+                    {candidate.currentTitle || "Candidate profile"} |{" "}
+                    {candidate.email}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -241,15 +337,38 @@ function CandidatesPage() {
                   <span className="text-sm text-muted-foreground">
                     Added {formatRelativeDate(candidate.createdAt)}
                   </span>
-                  <span className="text-sm font-medium text-primary">Open profile</span>
+                  <span className="text-sm font-medium text-primary">
+                    Open profile
+                  </span>
                 </div>
               </div>
             </Link>
           ))}
-          {!candidates.length ? (
-            <div className="rounded-[24px] border border-dashed border-border/80 px-5 py-12 text-center text-sm text-muted-foreground">
-              No candidates yet. Upload a resume to create the first profile.
+          {!searchResults.length && isSearching ? (
+            <div className="grid gap-3">
+              <div className="animate-pulse rounded-[22px] border border-border/80 bg-secondary/40 p-4" />
+              <div className="animate-pulse rounded-[22px] border border-border/80 bg-secondary/40 p-4" />
             </div>
+          ) : null}
+
+          {searchError ? (
+            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-red-100">
+              {searchError}
+            </div>
+          ) : null}
+
+          {!searchResults.length &&
+          !isSearching &&
+          (searchQuery.trim() || searchJobId) ? (
+            <EmptyState
+              title="No candidates matched"
+              description="Try a broader term, clear the job context, or search by a stronger skill signal."
+              actionLabel="Adjust search"
+              onAction={() => {
+                setSearchQuery("");
+                setSearchJobId("");
+              }}
+            />
           ) : null}
         </CardContent>
       </Card>

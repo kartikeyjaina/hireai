@@ -8,19 +8,24 @@ import {
   cosineSimilarity,
   generateEmbedding,
   parseResume,
-  scoreCandidate
+  scoreCandidate,
 } from "./ai.service.js";
+import { enqueueBackgroundJob } from "./background-job.service.js";
 import {
   buildApplicationAccessFilter,
   buildCandidateAccessFilter,
-  buildJobAccessFilter
+  buildJobAccessFilter,
 } from "./access-control.service.js";
 import { createNotification } from "./notification.service.js";
 
-const CANDIDATE_POPULATE = [{ path: "createdBy", select: "firstName lastName email role" }];
+const CANDIDATE_POPULATE = [
+  { path: "createdBy", select: "firstName lastName email role" },
+];
 
 function sanitizeResumeFields(value) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractMinimalCandidateProfile(resumeText) {
@@ -29,12 +34,23 @@ function extractMinimalCandidateProfile(resumeText) {
     .split(/\n+/)
     .map((line) => sanitizeResumeFields(line))
     .filter(Boolean);
-  const fullName = lines[0] || "Candidate Profile";
-  const emailMatch = normalizedText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
-  const phoneMatch = normalizedText.match(
-    /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/
+  const fullName =
+    lines.find(
+      (line) =>
+        line.split(/\s+/).filter(Boolean).length >= 2 && !/@/.test(line),
+    ) ||
+    lines[0] ||
+    "Candidate Profile";
+  const emailMatch = normalizedText.match(
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
   );
-  const summary = sanitizeResumeFields(lines.slice(0, 4).join(" ")).slice(0, 600);
+  const phoneMatch = normalizedText.match(
+    /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/,
+  );
+  const summary = sanitizeResumeFields(lines.slice(0, 4).join(" ")).slice(
+    0,
+    600,
+  );
 
   return {
     fullName,
@@ -47,7 +63,23 @@ function extractMinimalCandidateProfile(resumeText) {
     skills: [],
     workExperience: [],
     education: [],
-    certifications: []
+    certifications: [],
+  };
+}
+
+function splitCandidateName(fullName) {
+  const nameParts = sanitizeResumeFields(fullName).split(/\s+/).filter(Boolean);
+
+  if (!nameParts.length) {
+    return {
+      firstName: "Candidate",
+      lastName: "Profile",
+    };
+  }
+
+  return {
+    firstName: nameParts[0] || "Candidate",
+    lastName: nameParts.slice(1).join(" ") || "Profile",
   };
 }
 
@@ -56,7 +88,7 @@ async function generateEmbeddingSafely(text) {
     return await generateEmbedding({ text });
   } catch (error) {
     console.error("Candidate embedding generation failed", {
-      message: error?.message
+      message: error?.message,
     });
     return [];
   }
@@ -65,6 +97,9 @@ async function generateEmbeddingSafely(text) {
 export async function listCandidates(query, actor) {
   const { page, limit, skip } = parsePagination(query);
   const filter = await buildCandidateAccessFilter(actor);
+  const searchProjection = query.search
+    ? { score: { $meta: "textScore" } }
+    : undefined;
 
   if (query.source) {
     filter.source = query.source;
@@ -76,11 +111,16 @@ export async function listCandidates(query, actor) {
 
   const [items, total] = await Promise.all([
     Candidate.find(filter)
+      .select(searchProjection)
       .populate(CANDIDATE_POPULATE)
-      .sort({ createdAt: -1 })
+      .sort(
+        query.search
+          ? { score: { $meta: "textScore" }, createdAt: -1 }
+          : { createdAt: -1 },
+      )
       .skip(skip)
       .limit(limit),
-    Candidate.countDocuments(filter)
+    Candidate.countDocuments(filter),
   ]);
 
   return { items, pagination: { page, limit, total } };
@@ -90,7 +130,7 @@ export async function getCandidateById(candidateId, actor) {
   const accessFilter = await buildCandidateAccessFilter(actor);
   const candidate = await Candidate.findOne({
     _id: toObjectId(candidateId, "candidateId"),
-    ...accessFilter
+    ...accessFilter,
   }).populate(CANDIDATE_POPULATE);
 
   if (!candidate) {
@@ -105,17 +145,17 @@ export async function getCandidateProfile(candidateId, actor) {
   const applicationAccessFilter = await buildApplicationAccessFilter(actor);
   const applications = await Application.find({
     ...applicationAccessFilter,
-    candidate: candidate._id
+    candidate: candidate._id,
   })
     .populate([
       { path: "job" },
-      { path: "owner", select: "firstName lastName email role" }
+      { path: "owner", select: "firstName lastName email role" },
     ])
     .sort({ updatedAt: -1 });
 
   return {
     candidate,
-    applications
+    applications,
   };
 }
 
@@ -125,7 +165,7 @@ export async function createCandidate(payload, actorId) {
     payload.lastName,
     payload.currentTitle,
     payload.summary,
-    ...(payload.skills || [])
+    ...(payload.skills || []),
   ]
     .filter(Boolean)
     .join("\n");
@@ -135,7 +175,7 @@ export async function createCandidate(payload, actorId) {
     ...payload,
     createdBy: toObjectId(actorId, "actorId"),
     semanticEmbedding,
-    embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null
+    embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
   });
 
   await createNotification({
@@ -145,30 +185,28 @@ export async function createCandidate(payload, actorId) {
     message: `${candidate.firstName} ${candidate.lastName} was added to your talent pipeline.`,
     link: `/candidates/${candidate._id.toString()}`,
     metadata: {
-      candidateId: candidate._id.toString()
-    }
+      candidateId: candidate._id.toString(),
+    },
   });
 
-  return getCandidateById(candidate._id.toString(), { id: actorId, role: "admin" });
+  return getCandidateById(candidate._id.toString(), {
+    id: actorId,
+    role: "admin",
+  });
 }
 
 export async function createCandidateFromResume({
   actorId,
-  parsedResume,
+  candidateProfile,
   parsedResumeText,
-  source = "resume-upload"
+  source = "resume-upload",
 }) {
-  const fullNameParts = String(parsedResume.fullName || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  const firstName = fullNameParts[0] || "Candidate";
-  const lastName = fullNameParts.slice(1).join(" ") || "Profile";
+  const { firstName, lastName } = splitCandidateName(candidateProfile.fullName);
   const embeddingText = [
-    parsedResume.fullName,
-    parsedResume.currentTitle,
-    parsedResume.summary,
-    ...(parsedResume.skills || [])
+    candidateProfile.fullName,
+    candidateProfile.currentTitle,
+    candidateProfile.summary,
+    ...(candidateProfile.skills || []),
   ]
     .filter(Boolean)
     .join("\n");
@@ -177,19 +215,21 @@ export async function createCandidateFromResume({
   const candidate = await Candidate.create({
     firstName,
     lastName,
-    email: parsedResume.email || `${Date.now()}@missing-email.local`,
-    phone: parsedResume.phone || "",
-    location: parsedResume.location || "",
-    currentTitle: parsedResume.currentTitle || "",
-    yearsExperience: Number(parsedResume.totalYearsExperience) || 0,
+    email: candidateProfile.email || `${Date.now()}@missing-email.local`,
+    phone: candidateProfile.phone || "",
+    location: candidateProfile.location || "",
+    currentTitle: candidateProfile.currentTitle || "",
+    yearsExperience: Number(candidateProfile.totalYearsExperience) || 0,
     source,
-    summary: parsedResume.summary || "",
-    skills: Array.isArray(parsedResume.skills) ? parsedResume.skills : [],
+    summary: candidateProfile.summary || "",
+    skills: Array.isArray(candidateProfile.skills)
+      ? candidateProfile.skills
+      : [],
     tags: [],
     parsedResumeText,
     createdBy: toObjectId(actorId, "actorId"),
     semanticEmbedding,
-    embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null
+    embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
   });
 
   await createNotification({
@@ -200,11 +240,14 @@ export async function createCandidateFromResume({
     link: `/candidates/${candidate._id.toString()}`,
     metadata: {
       candidateId: candidate._id.toString(),
-      source
-    }
+      source,
+    },
   });
 
-  return getCandidateById(candidate._id.toString(), { id: actorId, role: "admin" });
+  return getCandidateById(candidate._id.toString(), {
+    id: actorId,
+    role: "admin",
+  });
 }
 
 export async function parseResumeAndCreateCandidate({
@@ -213,83 +256,139 @@ export async function parseResumeAndCreateCandidate({
   resumeText,
   targetRole,
   companyContext,
-  jobId
+  jobId,
 }) {
-  let parsed;
-
-  try {
-    parsed = await parseResume({
-      resumeText,
-      targetRole,
-      companyContext
-    });
-  } catch (error) {
-    console.error("AI resume parsing failed, creating fallback profile", {
-      actorId,
-      message: error?.message
-    });
-    parsed = extractMinimalCandidateProfile(resumeText);
-  }
-
+  const fallbackProfile = extractMinimalCandidateProfile(resumeText);
   const candidate = await createCandidateFromResume({
     actorId,
-    parsedResume: parsed,
-    parsedResumeText: resumeText
+    candidateProfile: fallbackProfile,
+    parsedResumeText: resumeText,
   });
 
-  let score = null;
   let application = null;
 
   if (jobId) {
     const jobAccessFilter = await buildJobAccessFilter(actor);
     const job = await Job.findOne({
       _id: toObjectId(jobId, "jobId"),
-      ...jobAccessFilter
+      ...jobAccessFilter,
     });
 
-    if (!job) {
-      throw new AppError("Job not found", 404);
-    }
-
-    try {
-      score = await scoreCandidate({
-        candidateProfile: parsed,
-        jobTitle: job.title,
-        jobDescription: job.description,
-        mustHaveSkills: job.skills || []
+    if (job) {
+      application = await Application.create({
+        candidate: candidate._id,
+        job: job._id,
+        stage: "applied",
+        status: "active",
+        score: null,
+        source: "resume-upload",
+        notes: "Resume uploaded. AI parsing will complete in the background.",
+        stageHistory: [
+          {
+            stage: "applied",
+            changedBy: toObjectId(actorId, "actorId"),
+            note: "Created from resume upload",
+          },
+        ],
       });
-    } catch (error) {
-      console.error("AI scoring failed during resume upload", {
+    } else {
+      console.error("Resume upload linked job was not found or inaccessible", {
         actorId,
-        jobId: job._id.toString(),
-        message: error?.message
+        jobId,
       });
-      score = null;
     }
-
-    application = await Application.create({
-      candidate: candidate._id,
-      job: job._id,
-      stage: "applied",
-      status: "active",
-      score: score?.score ?? null,
-      source: "resume-upload",
-      notes: score?.summary || "Resume uploaded and candidate profile created",
-      stageHistory: [
-        {
-          stage: "applied",
-          changedBy: toObjectId(actorId, "actorId"),
-          note: "Created from resume upload"
-        }
-      ]
-    });
   }
 
+  enqueueBackgroundJob("resume-upload-enrichment", async () => {
+    let parsedProfile = fallbackProfile;
+
+    try {
+      parsedProfile = await parseResume({
+        resumeText,
+        targetRole,
+        companyContext,
+      });
+    } catch (error) {
+      console.error("AI resume parsing failed, keeping fallback profile", {
+        actorId,
+        message: error?.message,
+      });
+    }
+
+    const embeddingText = [
+      parsedProfile.fullName,
+      parsedProfile.currentTitle,
+      parsedProfile.summary,
+      ...(parsedProfile.skills || []),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const semanticEmbedding = await generateEmbeddingSafely(embeddingText);
+
+    await Candidate.updateOne(
+      { _id: candidate._id },
+      {
+        $set: {
+          firstName: splitCandidateName(parsedProfile.fullName).firstName,
+          lastName: splitCandidateName(parsedProfile.fullName).lastName,
+          email: parsedProfile.email || candidate.email,
+          phone: parsedProfile.phone || candidate.phone,
+          location: parsedProfile.location || candidate.location,
+          currentTitle: parsedProfile.currentTitle || candidate.currentTitle,
+          yearsExperience:
+            Number(parsedProfile.totalYearsExperience) ||
+            candidate.yearsExperience,
+          summary: parsedProfile.summary || candidate.summary,
+          skills: Array.isArray(parsedProfile.skills)
+            ? parsedProfile.skills
+            : candidate.skills,
+          semanticEmbedding,
+          embeddingUpdatedAt: semanticEmbedding.length
+            ? new Date()
+            : candidate.embeddingUpdatedAt,
+        },
+      },
+    );
+
+    if (application) {
+      try {
+        const job = await Job.findById(application.job);
+
+        if (!job) {
+          return;
+        }
+
+        const score = await scoreCandidate({
+          candidateProfile: parsedProfile,
+          jobTitle: job.title,
+          jobDescription: job.description,
+          mustHaveSkills: job.skills || [],
+        });
+
+        await Application.updateOne(
+          { _id: application._id },
+          {
+            $set: {
+              score: score.score,
+              notes: score.summary || application.notes,
+            },
+          },
+        );
+      } catch (error) {
+        console.error("AI scoring failed during resume background processing", {
+          actorId,
+          applicationId: application._id.toString(),
+          message: error?.message,
+        });
+      }
+    }
+  });
+
   return {
-    parsed,
+    parsed: fallbackProfile,
     candidate,
-    score,
-    application
+    score: null,
+    application,
   };
 }
 
@@ -300,7 +399,7 @@ export async function updateCandidate(candidateId, payload, actor) {
     payload.lastName ?? candidate.lastName,
     payload.currentTitle ?? candidate.currentTitle,
     payload.summary ?? candidate.summary,
-    ...((payload.skills ?? candidate.skills) || [])
+    ...((payload.skills ?? candidate.skills) || []),
   ]
     .filter(Boolean)
     .join("\n");
@@ -313,7 +412,12 @@ export async function updateCandidate(candidateId, payload, actor) {
   return getCandidateById(candidate._id.toString(), actor);
 }
 
-export async function semanticSearchCandidates({ jobId, query, limit = 20, actor }) {
+export async function semanticSearchCandidates({
+  jobId,
+  query,
+  limit = 20,
+  actor,
+}) {
   const normalizedLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
   let searchText = String(query || "").trim();
   let job = null;
@@ -322,7 +426,7 @@ export async function semanticSearchCandidates({ jobId, query, limit = 20, actor
     const jobAccessFilter = await buildJobAccessFilter(actor);
     job = await Job.findOne({
       _id: toObjectId(jobId, "jobId"),
-      ...jobAccessFilter
+      ...jobAccessFilter,
     });
 
     if (!job) {
@@ -331,7 +435,10 @@ export async function semanticSearchCandidates({ jobId, query, limit = 20, actor
   }
 
   if (!searchText && !job) {
-    throw new AppError("Either query or jobId is required for semantic search", 422);
+    throw new AppError(
+      "Either query or jobId is required for semantic search",
+      422,
+    );
   }
 
   if (!searchText && job) {
@@ -339,13 +446,13 @@ export async function semanticSearchCandidates({ jobId, query, limit = 20, actor
   }
 
   const queryEmbedding = await generateEmbedding({
-    text: searchText
+    text: searchText,
   });
 
   const accessFilter = await buildCandidateAccessFilter(actor);
   const candidates = await Candidate.find({
     ...accessFilter,
-    semanticEmbedding: { $exists: true, $ne: [] }
+    semanticEmbedding: { $exists: true, $ne: [] },
   })
     .populate(CANDIDATE_POPULATE)
     .limit(200);
@@ -353,14 +460,17 @@ export async function semanticSearchCandidates({ jobId, query, limit = 20, actor
   const items = candidates
     .map((candidate) => ({
       candidate,
-      semanticScore: cosineSimilarity(queryEmbedding, candidate.semanticEmbedding || [])
+      semanticScore: cosineSimilarity(
+        queryEmbedding,
+        candidate.semanticEmbedding || [],
+      ),
     }))
     .sort((left, right) => right.semanticScore - left.semanticScore)
     .slice(0, normalizedLimit);
 
   return {
     items,
-    job
+    job,
   };
 }
 
@@ -368,7 +478,7 @@ export async function rankCandidatesForJob(jobId, actor) {
   const jobAccessFilter = await buildJobAccessFilter(actor);
   const job = await Job.findOne({
     _id: toObjectId(jobId, "jobId"),
-    ...jobAccessFilter
+    ...jobAccessFilter,
   });
 
   if (!job) {
@@ -378,7 +488,7 @@ export async function rankCandidatesForJob(jobId, actor) {
   const candidateAccessFilter = await buildCandidateAccessFilter(actor);
   const candidates = await Candidate.find({
     ...candidateAccessFilter,
-    semanticEmbedding: { $exists: true, $ne: [] }
+    semanticEmbedding: { $exists: true, $ne: [] },
   }).limit(100);
 
   const rankings = [];
@@ -386,7 +496,7 @@ export async function rankCandidatesForJob(jobId, actor) {
   for (const candidate of candidates) {
     const semanticScore = cosineSimilarity(
       job.semanticEmbedding || [],
-      candidate.semanticEmbedding || []
+      candidate.semanticEmbedding || [],
     );
 
     const aiScore = await scoreCandidate({
@@ -395,11 +505,11 @@ export async function rankCandidatesForJob(jobId, actor) {
         currentTitle: candidate.currentTitle,
         summary: candidate.summary,
         skills: candidate.skills,
-        totalYearsExperience: candidate.yearsExperience
+        totalYearsExperience: candidate.yearsExperience,
       },
       jobTitle: job.title,
       jobDescription: job.description,
-      mustHaveSkills: job.skills || []
+      mustHaveSkills: job.skills || [],
     });
 
     rankings.push({
@@ -408,7 +518,7 @@ export async function rankCandidatesForJob(jobId, actor) {
       aiScore,
       combinedScore:
         Math.round((semanticScore * 100 * 0.35 + aiScore.score * 0.65) * 100) /
-        100
+        100,
     });
   }
 
@@ -416,6 +526,6 @@ export async function rankCandidatesForJob(jobId, actor) {
 
   return {
     job,
-    items: rankings
+    items: rankings,
   };
 }

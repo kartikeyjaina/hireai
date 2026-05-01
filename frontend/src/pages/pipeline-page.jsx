@@ -3,9 +3,19 @@ import ContentSkeleton from "@/components/content-skeleton";
 import PipelineBoard from "@/components/pipeline-board";
 import SectionHeader from "@/components/section-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
-import { getJobs, getPipelineBoard, moveApplicationStage } from "@/lib/hireai-api";
+import {
+  getJobs,
+  getPipelineBoard,
+  moveApplicationStage,
+} from "@/lib/hireai-api";
 
 function PipelinePage() {
   const { token } = useAuth();
@@ -14,6 +24,7 @@ function PipelinePage() {
   const [board, setBoard] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function refreshBoard(jobId = selectedJobId) {
     const response = await getPipelineBoard(token, jobId);
@@ -21,12 +32,16 @@ function PipelinePage() {
   }
 
   useEffect(() => {
-    getJobs(token).then((response) => setJobs(response.items)).catch(console.error);
+    getJobs(token)
+      .then((response) => setJobs(response.items))
+      .catch(console.error);
   }, [token]);
 
   useEffect(() => {
     setIsLoading(true);
-    refreshBoard().catch(console.error).finally(() => setIsLoading(false));
+    refreshBoard()
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, [token, selectedJobId]);
 
   if (isLoading) {
@@ -43,8 +58,8 @@ function PipelinePage() {
           ? items.filter((item) => item._id !== dragging.id)
           : stage === nextStage
             ? [movedItem, ...items]
-            : items
-      ])
+            : items,
+      ]),
     );
 
     if (!optimisticBoard[nextStage]) {
@@ -53,17 +68,24 @@ function PipelinePage() {
 
     setBoard(optimisticBoard);
     setIsSaving(true);
+    setError("");
 
     try {
       await moveApplicationStage(token, dragging.id, {
         stage: nextStage,
-        status: nextStage === "hired" ? "hired" : nextStage === "rejected" ? "rejected" : "active",
-        notes: `Moved to ${nextStage}`
+        status:
+          nextStage === "hired"
+            ? "hired"
+            : nextStage === "rejected"
+              ? "rejected"
+              : "active",
+        notes: `Moved to ${nextStage}`,
       });
       await refreshBoard();
     } catch (error) {
       console.error(error);
       setBoard(previousBoard);
+      setError(error.message);
     } finally {
       setIsSaving(false);
     }
@@ -100,11 +122,21 @@ function PipelinePage() {
         <CardHeader>
           <CardTitle>Hiring workflow board</CardTitle>
           <CardDescription>
-            Move applications between stages to persist pipeline progression for recruiters and hiring teams.
+            Move applications between stages to persist pipeline progression for
+            recruiters and hiring teams.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PipelineBoard board={board} isSaving={isSaving} onMove={handleMove} />
+          {error ? (
+            <div className="mb-4 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-red-100">
+              {error}
+            </div>
+          ) : null}
+          <PipelineBoard
+            board={board}
+            isSaving={isSaving}
+            onMove={handleMove}
+          />
         </CardContent>
       </Card>
     </div>

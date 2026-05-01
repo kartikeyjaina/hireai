@@ -7,7 +7,7 @@ import {
   parseResumeAndCreateCandidate,
   rankCandidatesForJob,
   semanticSearchCandidates,
-  updateCandidate
+  updateCandidate,
 } from "../services/candidate.service.js";
 import { extractTextFromFile } from "../utils/file-text.js";
 
@@ -17,17 +17,26 @@ export const list = asyncHandler(async (request, response) => {
 });
 
 export const getById = asyncHandler(async (request, response) => {
-  const candidate = await getCandidateById(request.params.candidateId, request.user);
+  const candidate = await getCandidateById(
+    request.params.candidateId,
+    request.user,
+  );
   response.status(200).json({ candidate });
 });
 
 export const getProfile = asyncHandler(async (request, response) => {
-  const profile = await getCandidateProfile(request.params.candidateId, request.user);
+  const profile = await getCandidateProfile(
+    request.params.candidateId,
+    request.user,
+  );
   response.status(200).json(profile);
 });
 
 export const create = asyncHandler(async (request, response) => {
-  const candidate = await createCandidate(request.validatedBody, request.user.id);
+  const candidate = await createCandidate(
+    request.validatedBody,
+    request.user.id,
+  );
   response.status(201).json({ candidate });
 });
 
@@ -35,20 +44,33 @@ export const update = asyncHandler(async (request, response) => {
   const candidate = await updateCandidate(
     request.params.candidateId,
     request.validatedBody,
-    request.user
+    request.user,
   );
   response.status(200).json({ candidate });
 });
 
 export const uploadResume = asyncHandler(async (request, response) => {
-  const resumeText = await extractTextFromFile(request.file);
+  let resumeText;
+
+  try {
+    resumeText = await extractTextFromFile(request.file);
+  } catch (error) {
+    console.error("Resume text extraction failed, using raw fallback text", {
+      message: error?.message,
+    });
+    resumeText =
+      request.file?.buffer?.toString("utf8") ||
+      request.file?.originalname ||
+      "";
+  }
+
   const result = await parseResumeAndCreateCandidate({
     actor: request.user,
     actorId: request.user.id,
     resumeText,
     targetRole: request.body.targetRole || "",
     companyContext: request.body.companyContext || "",
-    jobId: request.body.jobId || ""
+    jobId: request.body.jobId || "",
   });
 
   response.status(201).json(result);
@@ -57,7 +79,7 @@ export const uploadResume = asyncHandler(async (request, response) => {
 export const semanticSearch = asyncHandler(async (request, response) => {
   const result = await semanticSearchCandidates({
     ...request.query,
-    actor: request.user
+    actor: request.user,
   });
   response.status(200).json(result);
 });

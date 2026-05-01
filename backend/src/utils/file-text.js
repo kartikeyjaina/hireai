@@ -6,11 +6,11 @@ import AppError from "./app-error.js";
 const MAX_RESUME_FILE_SIZE = 8 * 1024 * 1024;
 const MIN_PARSEABLE_TEXT_LENGTH = 200;
 const PARSE_FAILURE_MESSAGE =
-  "Resume could not be parsed. Please upload a valid file.";
+  "Unable to parse resume. Please upload a valid file.";
 const supportedMimeTypes = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain"
+  "text/plain",
 ]);
 const DOCX_XML_PATTERN = /^word\/(document|header\d+|footer\d+)\.xml$/;
 const xmlParser = new XMLParser({
@@ -33,6 +33,7 @@ function normalizeExtractedText(text) {
   return String(text || "")
     .replace(/\r/g, "\n")
     .replace(/\u00a0/g, " ")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, " ")
     .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -50,7 +51,9 @@ function isLikelyCorruptedText(text) {
   }
 
   const replacementCharacterCount = (normalized.match(/\uFFFD/g) || []).length;
-  const printableAsciiCount = (normalized.match(/[A-Za-z0-9,.;:!?@()\-_/ ]/g) || []).length;
+  const printableAsciiCount = (
+    normalized.match(/[A-Za-z0-9,.;:!?@()\-_/ ]/g) || []
+  ).length;
   const totalLength = normalized.length;
   const printableRatio = printableAsciiCount / totalLength;
   const replacementRatio = replacementCharacterCount / totalLength;
@@ -77,7 +80,11 @@ function validateResumeFile(file) {
 }
 
 function assertExtractedTextQuality(text) {
-  if (!text || text.length < MIN_PARSEABLE_TEXT_LENGTH || isLikelyCorruptedText(text)) {
+  if (
+    !text ||
+    text.length < MIN_PARSEABLE_TEXT_LENGTH ||
+    isLikelyCorruptedText(text)
+  ) {
     throw new AppError(PARSE_FAILURE_MESSAGE, 422);
   }
 }
@@ -184,46 +191,54 @@ async function extractTextFromDocxBuffer(buffer) {
 }
 
 export async function extractTextFromFile(file) {
-  validateResumeFile(file);
+  try {
+    validateResumeFile(file);
 
-  if (file.mimetype === "application/pdf") {
-    const text = await extractTextFromPdfBuffer(file.buffer);
+    if (file.mimetype === "application/pdf") {
+      const text = await extractTextFromPdfBuffer(file.buffer);
 
-    if (!text) {
-      throw new AppError("No readable text was found in the PDF", 422);
+      if (!text) {
+        throw new AppError(PARSE_FAILURE_MESSAGE, 422);
+      }
+
+      assertExtractedTextQuality(text);
+
+      return text;
     }
 
-    assertExtractedTextQuality(text);
+    if (
+      file.mimetype ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      const text = await extractTextFromDocxBuffer(file.buffer);
 
-    return text;
-  }
+      if (!text) {
+        throw new AppError(PARSE_FAILURE_MESSAGE, 422);
+      }
 
-  if (
-    file.mimetype ===
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  ) {
-    const text = await extractTextFromDocxBuffer(file.buffer);
+      assertExtractedTextQuality(text);
 
-    if (!text) {
-      throw new AppError("No readable text was found in the DOCX file", 422);
+      return text;
     }
 
-    assertExtractedTextQuality(text);
+    if (file.mimetype === "text/plain") {
+      const text = normalizeExtractedText(file.buffer.toString("utf8"));
 
-    return text;
-  }
+      if (!text) {
+        throw new AppError(PARSE_FAILURE_MESSAGE, 422);
+      }
 
-  if (file.mimetype === "text/plain") {
-    const text = normalizeExtractedText(file.buffer.toString("utf8"));
+      assertExtractedTextQuality(text);
 
-    if (!text) {
-      throw new AppError("The text file is empty", 422);
+      return text;
     }
 
-    assertExtractedTextQuality(text);
+    throw new AppError("Unsupported file type", 415);
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 422) {
+      throw new AppError(PARSE_FAILURE_MESSAGE, 422);
+    }
 
-    return text;
+    throw error;
   }
-
-  throw new AppError("Unsupported file type", 415);
 }

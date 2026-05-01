@@ -9,9 +9,9 @@ function authHeaders(token, extra = {}) {
 
 export function getOverview(token) {
   return Promise.all([
-    apiRequest("/jobs?limit=100", { headers: authHeaders(token) }),
-    apiRequest("/candidates?limit=100", { headers: authHeaders(token) }),
-    apiRequest("/applications?limit=100", { headers: authHeaders(token) }),
+    apiRequest("/jobs?limit=50", { headers: authHeaders(token) }),
+    apiRequest("/candidates?limit=50", { headers: authHeaders(token) }),
+    apiRequest("/applications?limit=50", { headers: authHeaders(token) }),
   ]).then(([jobs, candidates, applications]) => ({
     jobs,
     candidates,
@@ -20,7 +20,7 @@ export function getOverview(token) {
 }
 
 export function getJobs(token) {
-  return apiRequest("/jobs?limit=100", {
+  return apiRequest("/jobs?limit=50", {
     headers: authHeaders(token),
   });
 }
@@ -51,8 +51,8 @@ export function generateJobDescriptionRequest(token, payload) {
 
 export function getCandidates(token, search = "") {
   const query = search
-    ? `?limit=100&search=${encodeURIComponent(search)}`
-    : "?limit=100";
+    ? `?limit=50&search=${encodeURIComponent(search)}`
+    : "?limit=50";
   return apiRequest(`/candidates${query}`, {
     headers: authHeaders(token),
   });

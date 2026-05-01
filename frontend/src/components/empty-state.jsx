@@ -6,6 +6,7 @@ function EmptyState({
   title = "No archived searches yet",
   description = "Save filtered talent pools and AI-generated shortlists to compare hiring quality over time.",
   actionLabel = "Create saved search",
+  onAction,
 }) {
   return (
     <motion.div
@@ -21,9 +22,11 @@ function EmptyState({
       <p className="mt-3 max-w-md text-sm text-muted-foreground">
         {description}
       </p>
-      <Button variant="secondary" className="mt-6">
-        {actionLabel}
-      </Button>
+      {actionLabel ? (
+        <Button variant="secondary" className="mt-6" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </motion.div>
   );
 }
