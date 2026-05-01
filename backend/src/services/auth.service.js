@@ -40,6 +40,12 @@ export async function registerUser(payload) {
     throw new AppError("An account with this email already exists", 409);
   }
 
+  // Prevent self-assignment of admin role via public signup.
+  // Admin accounts must be created by an existing admin via the user management API.
+  const requestedRole = payload.role || "candidate";
+  const allowedPublicRoles = ["candidate", "recruiter", "interviewer"];
+  const safeRole = allowedPublicRoles.includes(requestedRole) ? requestedRole : "candidate";
+
   const passwordHash = await bcrypt.hash(payload.password, SALT_ROUNDS);
 
   const user = await User.create({
@@ -47,7 +53,7 @@ export async function registerUser(payload) {
     lastName: payload.lastName.trim(),
     email: normalizedEmail,
     passwordHash,
-    role: payload.role || "candidate"
+    role: safeRole
   });
 
   return {

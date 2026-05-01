@@ -158,12 +158,16 @@ const jobDescriptionSchema = {
 
 function getAiClient() {
   if (!process.env.GEMINI_API_KEY) {
-    throw new AppError("GEMINI_API_KEY is not configured", 500);
+    return null;
   }
 
   return new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
   });
+}
+
+function isAiAvailable() {
+  return Boolean(process.env.GEMINI_API_KEY);
 }
 
 function getModelName() {
@@ -400,8 +404,15 @@ async function generateStructuredOutput({
   prompt,
   schema,
   cachePayload,
-  ttlSeconds = CACHE_TTL_SECONDS
+  ttlSeconds = CACHE_TTL_SECONDS,
+  fallback = null
 }) {
+  if (!isAiAvailable()) {
+    console.warn(`AI unavailable (no GEMINI_API_KEY): skipping ${taskName}`);
+    if (fallback !== null) return fallback;
+    throw new AppError("AI features are not configured. Please set GEMINI_API_KEY.", 503);
+  }
+
   const cacheKey = createCacheKey(taskName, cachePayload);
   const cached = await getCachedValue(cacheKey);
 
@@ -498,7 +509,20 @@ ${normalizedResumeText}
     taskName: "parseResume",
     prompt,
     schema: resumeSchema,
-    cachePayload: { resumeText: normalizedResumeText, targetRole, companyContext }
+    cachePayload: { resumeText: normalizedResumeText, targetRole, companyContext },
+    fallback: {
+      fullName: "",
+      email: "",
+      phone: "",
+      location: "",
+      currentTitle: "",
+      summary: "",
+      totalYearsExperience: 0,
+      skills: [],
+      workExperience: [],
+      education: [],
+      certifications: []
+    }
   });
 }
 
@@ -550,6 +574,13 @@ ${JSON.stringify(candidateProfile, null, 2)}
       jobTitle: normalizedJobTitle,
       jobDescription: normalizedJobDescription,
       mustHaveSkills
+    },
+    fallback: {
+      score: 0,
+      recommendation: "mixed",
+      strengths: [],
+      concerns: ["AI scoring unavailable"],
+      summary: "AI scoring is not configured. Please set GEMINI_API_KEY."
     }
   });
 }
@@ -741,6 +772,12 @@ export async function generateEmbedding({
   taskType = "SEMANTIC_SIMILARITY"
 }) {
   const normalizedText = requireString(text, "text", 5);
+
+  if (!isAiAvailable()) {
+    console.warn("AI unavailable (no GEMINI_API_KEY): skipping embedding generation");
+    return [];
+  }
+
   const cacheKey = createCacheKey("embedding", {
     model: EMBEDDING_MODEL,
     taskType,

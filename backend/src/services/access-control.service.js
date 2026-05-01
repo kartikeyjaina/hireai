@@ -24,6 +24,11 @@ export async function buildJobAccessFilter(actor) {
     return {};
   }
 
+  if (actor?.role === "candidate") {
+    // Candidates only see published jobs
+    return { status: "published" };
+  }
+
   const actorId = getActorObjectId(actor);
 
   if (actor?.role === "recruiter") {
@@ -32,6 +37,7 @@ export async function buildJobAccessFilter(actor) {
     };
   }
 
+  // interviewer: only jobs they are assigned to via interviews
   const interviews = await Interview.find({ interviewers: actorId })
     .select("job")
     .lean();
@@ -49,6 +55,12 @@ export async function buildCandidateAccessFilter(actor) {
     return {};
   }
 
+  if (actor?.role === "candidate") {
+    // Candidates can only see their own candidate profile (matched by userId)
+    const actorId = getActorObjectId(actor);
+    return { userId: actorId };
+  }
+
   const actorId = getActorObjectId(actor);
 
   if (actor?.role === "recruiter") {
@@ -57,6 +69,7 @@ export async function buildCandidateAccessFilter(actor) {
     };
   }
 
+  // interviewer
   const interviews = await Interview.find({ interviewers: actorId })
     .select("candidate")
     .lean();
@@ -72,6 +85,17 @@ export async function buildCandidateAccessFilter(actor) {
 export async function buildApplicationAccessFilter(actor) {
   if (actor?.role === "admin") {
     return {};
+  }
+
+  if (actor?.role === "candidate") {
+    // Candidates only see their own applications (linked via userId on candidate record)
+    const actorId = getActorObjectId(actor);
+    const candidateRecord = await Candidate.findOne({ userId: actorId }).select("_id").lean();
+    if (!candidateRecord) {
+      // No candidate profile yet — return filter that matches nothing
+      return { _id: null };
+    }
+    return { candidate: candidateRecord._id };
   }
 
   const actorId = getActorObjectId(actor);
@@ -94,6 +118,7 @@ export async function buildApplicationAccessFilter(actor) {
     };
   }
 
+  // interviewer
   const interviews = await Interview.find({ interviewers: actorId })
     .select("application")
     .lean();
@@ -109,6 +134,11 @@ export async function buildApplicationAccessFilter(actor) {
 export async function buildInterviewAccessFilter(actor) {
   if (actor?.role === "admin") {
     return {};
+  }
+
+  if (actor?.role === "candidate") {
+    // Candidates don't access interviews directly
+    return { _id: null };
   }
 
   const actorId = getActorObjectId(actor);

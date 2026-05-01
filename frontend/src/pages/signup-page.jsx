@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthFormShell from "@/components/auth/auth-form-shell";
 import AuthInput from "@/components/auth/auth-input";
 import AuthLayout from "@/components/auth/auth-layout";
+import RoleSelector from "@/components/auth/role-selector";
 import { useAuth } from "@/context/auth-context";
 import { getRoleHomePath } from "@/lib/roles";
 import { validateSignupForm } from "@/lib/validation";
@@ -35,6 +36,11 @@ function SignupPage() {
     }));
   }
 
+  function updateRole(role) {
+    setValues((current) => ({ ...current, role }));
+    setErrors((current) => ({ ...current, role: "" }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -58,19 +64,31 @@ function SignupPage() {
     }
   }
 
+  const roleLabels = {
+    candidate: "Create account",
+    recruiter: "Create recruiter account",
+    interviewer: "Create interviewer account",
+  };
+
+  const roleSubtitles = {
+    candidate: "Browse published roles and submit applications.",
+    recruiter: "Manage job postings, candidates, and hiring pipelines.",
+    interviewer: "Access your assigned interviews and candidate profiles.",
+  };
+
   return (
     <AuthLayout
-      title="Create your candidate account"
-      subtitle="Set up a secure profile so you can browse published roles and submit applications."
+      title="Create your account"
+      subtitle={roleSubtitles[values.role] || roleSubtitles.candidate}
       form={
         <AuthFormShell
           error={serverError}
           isSubmitting={isSubmitting}
           onSubmit={handleSubmit}
-          submitLabel="Create candidate account"
+          submitLabel={roleLabels[values.role] || "Create account"}
           footer={
             <>
-              Already have access?{" "}
+              Already have an account?{" "}
               <Link
                 className="text-primary transition hover:text-primary/80"
                 to="/login"
@@ -80,6 +98,11 @@ function SignupPage() {
             </>
           }
         >
+          <RoleSelector value={values.role} onChange={updateRole} />
+          {errors.role ? (
+            <p className="text-sm text-destructive">{errors.role}</p>
+          ) : null}
+
           <div className="grid gap-5 sm:grid-cols-2">
             <AuthInput
               autoComplete="given-name"

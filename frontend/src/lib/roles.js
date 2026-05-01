@@ -2,7 +2,7 @@ export const ROLE_HOME_PATHS = {
   admin: "/dashboard/admin",
   recruiter: "/dashboard/recruiter",
   interviewer: "/dashboard/interviewer",
-  candidate: "/jobs"
+  candidate: "/dashboard/candidate",
 };
 
 export function getRoleHomePath(role) {
@@ -22,11 +22,7 @@ export function getRoleNavItems(role) {
       { label: "Candidates", value: "candidates", href: "/candidates" },
       { label: "Pipeline", value: "pipeline", href: "/pipeline" },
       { label: "Users", value: "users", href: "/users" },
-      {
-        label: "Notifications",
-        value: "notifications",
-        href: "/notifications",
-      },
+      { label: "Notifications", value: "notifications", href: "/notifications" },
     ];
   }
 
@@ -34,14 +30,19 @@ export function getRoleNavItems(role) {
     return [
       { label: "Dashboard", value: "overview", href: "/dashboard/interviewer" },
       { label: "Interviews", value: "interviews", href: "/interviews" },
-      {
-        label: "Notifications",
-        value: "notifications",
-        href: "/notifications",
-      },
+      { label: "Notifications", value: "notifications", href: "/notifications" },
     ];
   }
 
+  if (role === "candidate") {
+    return [
+      { label: "Dashboard", value: "overview", href: "/dashboard/candidate" },
+      { label: "Browse Jobs", value: "jobs", href: "/jobs" },
+      { label: "Notifications", value: "notifications", href: "/notifications" },
+    ];
+  }
+
+  // recruiter (default)
   return [
     { label: "Dashboard", value: "overview", href: "/dashboard/recruiter" },
     { label: "Candidates", value: "candidates", href: "/candidates" },

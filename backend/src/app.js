@@ -10,6 +10,7 @@ import errorHandler from "./middleware/error.middleware.js";
 import applicationRoutes from "./routes/application.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import candidateRoutes from "./routes/candidate.routes.js";
+import candidateSelfRoutes from "./routes/candidate-self.routes.js";
 import commentRoutes from "./routes/comment.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import interviewRoutes from "./routes/interview.routes.js";
@@ -44,12 +45,17 @@ app.use("/api/public", publicRoutes);
 app.use("/api/ai", requireAuth, aiRateLimit, aiRoutes);
 app.use("/api/analytics", requireAuth, requireRole("admin", "recruiter", "interviewer"), analyticsRoutes);
 app.use("/api/users", requireAuth, requireRole("admin", "recruiter", "interviewer"), userRoutes);
-app.use("/api/jobs", requireAuth, requireRole("admin", "recruiter", "interviewer"), jobRoutes);
+// Jobs: all authenticated roles can read; write operations are guarded inside the route
+app.use("/api/jobs", requireAuth, jobRoutes);
+// Candidates: staff roles only (candidates access their own profile via /api/candidate/*)
 app.use("/api/candidates", requireAuth, requireRole("admin", "recruiter", "interviewer"), candidateRoutes);
-app.use("/api/applications", requireAuth, requireRole("admin", "recruiter", "interviewer"), applicationRoutes);
+// Applications: all authenticated roles (access-control filters per role inside service)
+app.use("/api/applications", requireAuth, applicationRoutes);
 app.use("/api/interviews", requireAuth, requireRole("admin", "recruiter", "interviewer"), interviewRoutes);
 app.use("/api/comments", requireAuth, requireRole("admin", "recruiter", "interviewer"), commentRoutes);
-app.use("/api/notifications", requireAuth, requireRole("admin", "recruiter", "interviewer"), notificationRoutes);
+app.use("/api/notifications", requireAuth, notificationRoutes);
+// Candidate self-service routes
+app.use("/api/candidate", requireAuth, requireRole("candidate"), candidateSelfRoutes);
 app.use(errorHandler);
 
 export default app;

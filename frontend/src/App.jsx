@@ -6,6 +6,7 @@ import RoleRoute from "@/components/auth/role-route";
 import { AuthProvider } from "@/context/auth-context";
 import DashboardShell from "@/components/dashboard-shell";
 import AdminDashboardPage from "@/pages/admin-dashboard-page";
+import CandidateDashboardPage from "@/pages/candidate-dashboard-page";
 import InterviewerDashboardPage from "@/pages/interviewer-dashboard-page";
 import CandidateProfilePage from "@/pages/candidate-profile-page";
 import AnalyticsPage from "@/pages/analytics-page";
@@ -26,42 +27,59 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Root redirect based on role */}
           <Route path="/" element={<RoleHomeRedirect />} />
+
+          {/* Public job board — accessible to everyone */}
           <Route path="/jobs" element={<PublicJobsPage />} />
           <Route path="/jobs/:id" element={<PublicJobDetailsPage />} />
+
+          {/* All authenticated users get the dashboard shell */}
           <Route element={<ProtectedRoute />}>
-            <Route element={<RoleRoute allowedRoles={["admin", "recruiter", "interviewer"]} />}>
-              <Route element={<DashboardShell />}>
+            <Route element={<DashboardShell />}>
+              {/* /dashboard redirects to role-specific home */}
+              <Route path="/dashboard" element={<RoleHomeRedirect />} />
+
+              {/* Notifications — all authenticated roles */}
+              <Route path="/notifications" element={<NotificationsPage />} />
+
+              {/* ── Candidate routes ── */}
+              <Route element={<RoleRoute allowedRoles={["candidate"]} />}>
+                <Route path="/dashboard/candidate" element={<CandidateDashboardPage />} />
+              </Route>
+
+              {/* ── Admin-only routes ── */}
+              <Route element={<RoleRoute allowedRoles={["admin"]} />}>
+                <Route path="/dashboard/admin" element={<AdminDashboardPage />} />
+                <Route path="/users" element={<UsersPage />} />
+              </Route>
+
+              {/* ── Admin + Recruiter routes ── */}
+              <Route element={<RoleRoute allowedRoles={["admin", "recruiter"]} />}>
+                <Route path="/dashboard/recruiter" element={<RecruiterDashboardPage />} />
+                <Route path="/candidates" element={<CandidatesPage />} />
                 <Route path="/candidates/:candidateId" element={<CandidateProfilePage />} />
-                <Route path="/dashboard" element={<RoleHomeRedirect />} />
+                <Route path="/dashboard/jobs" element={<JobsPage />} />
+                <Route path="/pipeline" element={<PipelinePage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+              </Route>
 
-                <Route element={<RoleRoute allowedRoles={["admin"]} />}>
-                  <Route path="/dashboard/admin" element={<AdminDashboardPage />} />
-                  <Route path="/users" element={<UsersPage />} />
-                </Route>
-
-                <Route element={<RoleRoute allowedRoles={["admin", "recruiter"]} />}>
-                  <Route path="/dashboard/recruiter" element={<RecruiterDashboardPage />} />
-                  <Route path="/candidates" element={<CandidatesPage />} />
-                  <Route path="/dashboard/jobs" element={<JobsPage />} />
-                  <Route path="/pipeline" element={<PipelinePage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                </Route>
-
-                <Route element={<RoleRoute allowedRoles={["admin", "recruiter", "interviewer"]} />}>
-                  <Route path="/dashboard/interviewer" element={<InterviewerDashboardPage />} />
-                  <Route path="/interviews" element={<InterviewsPage />} />
-                </Route>
-
-                <Route path="/notifications" element={<NotificationsPage />} />
+              {/* ── Admin + Recruiter + Interviewer routes ── */}
+              <Route element={<RoleRoute allowedRoles={["admin", "recruiter", "interviewer"]} />}>
+                <Route path="/dashboard/interviewer" element={<InterviewerDashboardPage />} />
+                <Route path="/interviews" element={<InterviewsPage />} />
               </Route>
             </Route>
           </Route>
+
+          {/* Auth pages — redirect away if already logged in */}
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/jobs" replace />} />
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

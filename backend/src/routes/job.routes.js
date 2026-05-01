@@ -7,8 +7,11 @@ import { validateJobDescriptionRequest } from "../validators/ai.validator.js";
 
 const router = Router();
 
+// All authenticated roles can list and view jobs (access-control filters by role in service)
 router.get("/", jobController.list);
 router.get("/:jobId", jobController.getById);
+
+// Only admin/recruiter can create, update, or generate descriptions
 router.post(
   "/generate-description",
   requireRole("admin", "recruiter"),

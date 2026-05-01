@@ -78,6 +78,12 @@ const candidateSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
+    },
+    // Optional link to a User account (set when a candidate self-registers)
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
     }
   },
   {
@@ -86,7 +92,8 @@ const candidateSchema = new mongoose.Schema(
   }
 );
 
-candidateSchema.index({ email: 1 });
+candidateSchema.index({ email: 1 }, { unique: true });
+candidateSchema.index({ userId: 1 }, { sparse: true });
 candidateSchema.index({ createdAt: -1 });
 candidateSchema.index({ embeddingUpdatedAt: -1 });
 candidateSchema.index({

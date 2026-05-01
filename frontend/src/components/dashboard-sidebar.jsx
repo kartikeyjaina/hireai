@@ -87,21 +87,27 @@ function DashboardSidebar({ mobileOpen, onNavigate, role }) {
               ? "Admin command"
               : role === "interviewer"
                 ? "Interviewer loop"
-                : "Recruiter workflow"}
+                : role === "candidate"
+                  ? "Candidate portal"
+                  : "Recruiter workflow"}
           </div>
           <div className="mt-3 text-lg font-semibold text-foreground">
             {role === "admin"
               ? "Cross-team hiring visibility in one place"
               : role === "interviewer"
                 ? "Assigned interviews and feedback context"
-                : "AI triage reduces screening time by 41%"}
+                : role === "candidate"
+                  ? "Browse roles and track your applications"
+                  : "AI triage reduces screening time by 41%"}
           </div>
           <p className="mt-2 text-sm">
             {role === "admin"
               ? "Oversee analytics, users, jobs, and candidate flow from a single command surface."
               : role === "interviewer"
                 ? "Focus on candidate packets, interview notes, and timely loop execution."
-                : "Resume parsing, job drafting, and pipeline updates now build on the same reusable dashboard shell."}
+                : role === "candidate"
+                  ? "Apply to published roles and follow your progress through the hiring pipeline."
+                  : "Resume parsing, job drafting, and pipeline updates now build on the same reusable dashboard shell."}
           </p>
         </div>
       </div>

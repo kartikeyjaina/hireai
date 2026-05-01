@@ -172,12 +172,31 @@ export async function createCandidate(payload, actorId, options = {}) {
     .join("\n");
   const semanticEmbedding = await generateEmbeddingSafely(embeddingText);
 
-  const candidate = await Candidate.create({
-    ...payload,
-    createdBy: toObjectId(actorId, "actorId"),
-    semanticEmbedding,
-    embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
-  });
+  let candidate;
+
+  try {
+    candidate = await Candidate.create({
+      ...payload,
+      createdBy: toObjectId(actorId, "actorId"),
+      semanticEmbedding,
+      embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
+    });
+  } catch (error) {
+    // Handle duplicate email gracefully — return the existing candidate
+    if (error?.code === 11000 && error?.keyPattern?.email) {
+      const existing = await Candidate.findOne({
+        email: String(payload.email || "").toLowerCase().trim(),
+      });
+      if (existing) {
+        if (returnRaw) return existing;
+        return getCandidateById(existing._id.toString(), {
+          id: actorId,
+          role: "admin",
+        });
+      }
+    }
+    throw error;
+  }
 
   if (!skipNotification) {
     await createNotification({
@@ -219,25 +238,46 @@ export async function createCandidateFromResume({
     .join("\n");
   const semanticEmbedding = await generateEmbeddingSafely(embeddingText);
 
-  const candidate = await Candidate.create({
-    firstName,
-    lastName,
-    email: candidateProfile.email || `${Date.now()}@missing-email.local`,
-    phone: candidateProfile.phone || "",
-    location: candidateProfile.location || "",
-    currentTitle: candidateProfile.currentTitle || "",
-    yearsExperience: Number(candidateProfile.totalYearsExperience) || 0,
-    source,
-    summary: candidateProfile.summary || "",
-    skills: Array.isArray(candidateProfile.skills)
-      ? candidateProfile.skills
-      : [],
-    tags: [],
-    parsedResumeText,
-    createdBy: toObjectId(actorId, "actorId"),
-    semanticEmbedding,
-    embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
-  });
+  const normalizedEmail =
+    candidateProfile.email
+      ? String(candidateProfile.email).toLowerCase().trim()
+      : `${Date.now()}@missing-email.local`;
+
+  let candidate;
+
+  try {
+    candidate = await Candidate.create({
+      firstName,
+      lastName,
+      email: normalizedEmail,
+      phone: candidateProfile.phone || "",
+      location: candidateProfile.location || "",
+      currentTitle: candidateProfile.currentTitle || "",
+      yearsExperience: Number(candidateProfile.totalYearsExperience) || 0,
+      source,
+      summary: candidateProfile.summary || "",
+      skills: Array.isArray(candidateProfile.skills)
+        ? candidateProfile.skills
+        : [],
+      tags: [],
+      parsedResumeText,
+      createdBy: toObjectId(actorId, "actorId"),
+      semanticEmbedding,
+      embeddingUpdatedAt: semanticEmbedding.length ? new Date() : null,
+    });
+  } catch (error) {
+    // Duplicate email — return the existing candidate record
+    if (error?.code === 11000 && error?.keyPattern?.email) {
+      const existing = await Candidate.findOne({ email: normalizedEmail });
+      if (existing) {
+        return getCandidateById(existing._id.toString(), {
+          id: actorId,
+          role: "admin",
+        });
+      }
+    }
+    throw error;
+  }
 
   await createNotification({
     recipient: actorId,

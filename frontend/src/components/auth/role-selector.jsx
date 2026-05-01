@@ -1,15 +1,15 @@
 import { cn } from "@/lib/utils";
 
 const roles = [
-  { label: "Admin", value: "admin" },
+  { label: "Candidate", value: "candidate" },
   { label: "Recruiter", value: "recruiter" },
-  { label: "Interviewer", value: "interviewer" }
+  { label: "Interviewer", value: "interviewer" },
 ];
 
 function RoleSelector({ onChange, value }) {
   return (
     <div className="grid gap-2">
-      <span className="text-sm font-medium text-foreground">Role</span>
+      <span className="text-sm font-medium text-foreground">I am a</span>
       <div className="grid gap-2 sm:grid-cols-3">
         {roles.map((role) => (
           <button

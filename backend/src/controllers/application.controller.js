@@ -1,5 +1,6 @@
 import asyncHandler from "../utils/async-handler.js";
 import {
+  applyAsCandidate as applyAsCandidateService,
   createApplication,
   getApplicationById,
   getPipelineBoard,
@@ -35,4 +36,9 @@ export const update = asyncHandler(async (request, response) => {
     request.user
   );
   response.status(200).json({ application });
+});
+
+export const applyAsCandidate = asyncHandler(async (request, response) => {
+  const result = await applyAsCandidateService(request.body, request.user);
+  response.status(201).json(result);
 });

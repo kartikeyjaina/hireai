@@ -55,6 +55,11 @@ export async function listApplications(query, actor) {
 }
 
 export async function getPipelineBoard(query, actor) {
+  // Candidates don't have access to the pipeline board
+  if (actor?.role === "candidate") {
+    return {};
+  }
+
   const filter = await buildApplicationAccessFilter(actor);
 
   if (query.jobId) {
@@ -225,4 +230,82 @@ export async function updateApplication(applicationId, payload, actorId, actor) 
   }
 
   return getApplicationById(application._id.toString(), actor);
+}
+
+/**
+ * Authenticated candidate applies to a published job.
+ * Finds or creates a Candidate record linked to the user account,
+ * then creates an Application preventing duplicates.
+ */
+export async function applyAsCandidate(body, actor) {
+  const jobId = String(body.jobId || "").trim();
+
+  if (!jobId) {
+    throw new AppError("jobId is required", 422);
+  }
+
+  const job = await Job.findOne({
+    _id: toObjectId(jobId, "jobId"),
+    status: "published"
+  });
+
+  if (!job) {
+    throw new AppError("Job not found or not open for applications", 404);
+  }
+
+  const actorId = toObjectId(actor.id, "actorId");
+
+  // Find or create a candidate profile linked to this user account
+  let candidate = await Candidate.findOne({ userId: actorId });
+
+  if (!candidate) {
+    // Auto-create a minimal candidate profile from the user account
+    const User = (await import("../models/user.model.js")).default;
+    const user = await User.findById(actorId);
+
+    if (!user) {
+      throw new AppError("User account not found", 404);
+    }
+
+    candidate = await Candidate.create({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      source: "candidate-portal",
+      createdBy: actorId,
+      userId: actorId
+    });
+  }
+
+  // Prevent duplicate applications
+  const existing = await Application.findOne({
+    candidate: candidate._id,
+    job: job._id
+  });
+
+  if (existing) {
+    throw new AppError("You have already applied to this job", 409);
+  }
+
+  const application = await Application.create({
+    candidate: candidate._id,
+    job: job._id,
+    stage: "applied",
+    status: "active",
+    source: "candidate-portal",
+    notes: "Applied via candidate portal",
+    stageHistory: [
+      {
+        stage: "applied",
+        changedBy: actorId,
+        note: "Candidate self-applied"
+      }
+    ]
+  });
+
+  return {
+    message: "Application submitted successfully",
+    applicationId: application._id.toString(),
+    candidateId: candidate._id.toString()
+  };
 }

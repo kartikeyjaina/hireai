@@ -15,7 +15,10 @@ export async function listJobs(query, actor) {
   const filter = await buildJobAccessFilter(actor);
 
   if (query.status) {
-    filter.status = query.status;
+    // Candidates are already filtered to published; don't let them override
+    if (actor?.role !== "candidate") {
+      filter.status = query.status;
+    }
   }
 
   if (query.department) {
@@ -24,6 +27,7 @@ export async function listJobs(query, actor) {
 
   const [items, total] = await Promise.all([
     Job.find(filter)
+      .select("-semanticEmbedding")
       .populate(JOB_POPULATE)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -39,7 +43,9 @@ export async function getJobById(jobId, actor) {
   const job = await Job.findOne({
     _id: toObjectId(jobId, "jobId"),
     ...accessFilter
-  }).populate(JOB_POPULATE);
+  })
+    .select("-semanticEmbedding")
+    .populate(JOB_POPULATE);
 
   if (!job) {
     throw new AppError("Job not found", 404);

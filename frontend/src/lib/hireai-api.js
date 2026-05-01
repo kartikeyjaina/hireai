@@ -251,3 +251,45 @@ export function moveApplicationStage(token, applicationId, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+// ── Candidate self-service API ──────────────────────────────────────────────
+
+export function getCandidateJobs(token, params = {}) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) searchParams.set(key, value);
+  });
+
+  const suffix = searchParams.toString() ? `?${searchParams.toString()}` : "";
+
+  return apiRequest(`/candidate/jobs${suffix}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function getCandidateJobById(token, jobId) {
+  return apiRequest(`/candidate/jobs/${jobId}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function getCandidateOwnProfile(token) {
+  return apiRequest("/candidate/profile", {
+    headers: authHeaders(token),
+  });
+}
+
+export function getCandidateApplications(token) {
+  return apiRequest("/candidate/applications", {
+    headers: authHeaders(token),
+  });
+}
+
+export function applyToJobAsCandidate(token, jobId) {
+  return apiRequest("/applications/apply", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ jobId }),
+  });
+}

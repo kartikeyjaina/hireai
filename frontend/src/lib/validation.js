@@ -1,4 +1,5 @@
-const VALID_ROLES = ["admin", "recruiter", "interviewer", "candidate"];
+// Roles available for self-signup. Admin is excluded — must be created by an existing admin.
+const VALID_SIGNUP_ROLES = ["candidate", "recruiter", "interviewer"];
 
 export function validateLoginForm(values) {
   const errors = {};
@@ -34,7 +35,7 @@ export function validateSignupForm(values) {
       "Password must include uppercase, lowercase, and a number";
   }
 
-  if (!VALID_ROLES.includes(values.role)) {
+  if (!VALID_SIGNUP_ROLES.includes(values.role)) {
     errors.role = "Select a valid role";
   }
 

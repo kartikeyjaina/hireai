@@ -1,6 +1,8 @@
 import validator from "validator";
 
-const roles = ["admin", "recruiter", "interviewer", "candidate"];
+// Roles that can be self-selected during public signup.
+// Admin accounts must be created by an existing admin via the user management API.
+const PUBLIC_SIGNUP_ROLES = ["candidate", "recruiter", "interviewer"];
 
 function normalizeWhitespace(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -36,8 +38,8 @@ export function validateSignup(body) {
     errors.push("Password must be at least 8 characters and include uppercase, lowercase, and a number");
   }
 
-  if (!roles.includes(role)) {
-    errors.push("Role must be admin, recruiter, interviewer, or candidate");
+  if (!PUBLIC_SIGNUP_ROLES.includes(role)) {
+    errors.push(`Role must be one of: ${PUBLIC_SIGNUP_ROLES.join(", ")}`);
   }
 
   return errors.length
