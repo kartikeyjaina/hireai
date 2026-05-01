@@ -34,6 +34,10 @@ export async function listInterviews(query) {
     filter.job = toObjectId(query.jobId, "jobId");
   }
 
+  if (query.interviewerId) {
+    filter.interviewers = toObjectId(query.interviewerId, "interviewerId");
+  }
+
   const [items, total] = await Promise.all([
     Interview.find(filter)
       .populate(INTERVIEW_POPULATE)

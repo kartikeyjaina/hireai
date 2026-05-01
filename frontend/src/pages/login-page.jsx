@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthFormShell from "@/components/auth/auth-form-shell";
 import AuthInput from "@/components/auth/auth-input";
 import AuthLayout from "@/components/auth/auth-layout";
 import { useAuth } from "@/context/auth-context";
+import { getRoleHomePath } from "@/lib/roles";
 import { validateLoginForm } from "@/lib/validation";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
   const [values, setValues] = useState({
     email: "",
@@ -46,8 +46,8 @@ function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(values);
-      const redirectTo = location.state?.from?.pathname || "/";
+      const user = await login(values);
+      const redirectTo = getRoleHomePath(user?.role);
       navigate(redirectTo, { replace: true });
     } catch (error) {
       setServerError(error.details?.[0] || error.message);

@@ -17,6 +17,10 @@ export async function connectRedis() {
     throw new Error("REDIS_URL is not configured");
   }
 
+  if (!/^redis:\/\//i.test(redisUrl)) {
+    throw new Error("REDIS_URL must start with redis://");
+  }
+
   redisClient = createClient({
     url: redisUrl
   });

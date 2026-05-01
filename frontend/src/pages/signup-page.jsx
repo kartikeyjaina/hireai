@@ -5,6 +5,7 @@ import AuthInput from "@/components/auth/auth-input";
 import AuthLayout from "@/components/auth/auth-layout";
 import RoleSelector from "@/components/auth/role-selector";
 import { useAuth } from "@/context/auth-context";
+import { getRoleHomePath } from "@/lib/roles";
 import { validateSignupForm } from "@/lib/validation";
 
 function SignupPage() {
@@ -61,8 +62,8 @@ function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      await signup(values);
-      navigate("/", { replace: true });
+      const user = await signup(values);
+      navigate(getRoleHomePath(user?.role), { replace: true });
     } catch (error) {
       setServerError(error.details?.[0] || error.message);
     } finally {

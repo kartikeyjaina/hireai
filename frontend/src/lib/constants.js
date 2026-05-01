@@ -1,5 +1,5 @@
 export const navItems = [
-  { label: "Overview", value: "overview", href: "/" },
+  { label: "Overview", value: "overview", href: "/dashboard/recruiter" },
   { label: "Candidates", value: "candidates", href: "/candidates" },
   { label: "Jobs", value: "jobs", href: "/jobs" },
   { label: "Pipeline", value: "pipeline", href: "/pipeline" },

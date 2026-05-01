@@ -2,7 +2,7 @@ import { Bell, LogOut, Menu, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-function TopNav({ onCreateJob, onLogout, onOpenSidebar, user }) {
+function TopNav({ canCreateJob, onCreateJob, onLogout, onOpenSidebar, user }) {
   const navigate = useNavigate();
 
   return (
@@ -38,10 +38,12 @@ function TopNav({ onCreateJob, onLogout, onOpenSidebar, user }) {
         <Button variant="secondary" size="icon" onClick={onLogout}>
           <LogOut className="h-4 w-4" />
         </Button>
-        <Button onClick={onCreateJob}>
-          <Plus className="mr-2 h-4 w-4" />
-          New job
-        </Button>
+        {canCreateJob ? (
+          <Button onClick={onCreateJob}>
+            <Plus className="mr-2 h-4 w-4" />
+            New job
+          </Button>
+        ) : null}
       </div>
     </header>
   );

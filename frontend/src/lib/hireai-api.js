@@ -99,6 +99,37 @@ export function getUserDirectory(token, search = "") {
   });
 }
 
+export function getUsersRequest(token, filters = {}) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return apiRequest(`/users${query}`, {
+    headers: authHeaders(token)
+  });
+}
+
+export function updateUserRequest(token, userId, payload) {
+  return apiRequest(`/users/${userId}`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deactivateUserRequest(token, userId) {
+  return apiRequest(`/users/${userId}/deactivate`, {
+    method: "PATCH",
+    headers: authHeaders(token)
+  });
+}
+
 export function getComments(token, { subjectType, subjectId }) {
   const params = new URLSearchParams({
     subjectType,

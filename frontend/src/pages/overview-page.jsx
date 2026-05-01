@@ -10,7 +10,7 @@ import { useAuth } from "@/context/auth-context";
 import { getOverview } from "@/lib/hireai-api";
 import { stageLabel } from "@/lib/format";
 
-function OverviewPage() {
+function OverviewPage({ mode = "recruiter" }) {
   const { token, user } = useAuth();
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,9 +39,17 @@ function OverviewPage() {
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Hiring ops"
-        title={`Welcome back, ${user.firstName}`}
-        description="Your overview now reflects live backend records for jobs, candidates, and the recruiting pipeline."
+        eyebrow={mode === "admin" ? "System control" : "Hiring ops"}
+        title={
+          mode === "admin"
+            ? `Admin command center, ${user.firstName}`
+            : `Welcome back, ${user.firstName}`
+        }
+        description={
+          mode === "admin"
+            ? "Monitor platform health, funnel progression, and team performance from one system-level view."
+            : "Your overview reflects live backend records for jobs, candidates, and the recruiting pipeline."
+        }
         actions={
           <Button asChild>
             <Link to="/pipeline">

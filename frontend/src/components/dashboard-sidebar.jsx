@@ -4,23 +4,29 @@ import {
   Command,
   LayoutDashboard,
   PanelLeftClose,
+  Bell,
+  CalendarClock,
   Users
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { navItems } from "@/lib/constants";
+import { getRoleNavItems } from "@/lib/roles";
 
 const icons = {
   overview: LayoutDashboard,
   candidates: Users,
   jobs: BriefcaseBusiness,
   pipeline: PanelLeftClose,
-  analytics: BarChart3
+  analytics: BarChart3,
+  users: Users,
+  interviews: CalendarClock,
+  notifications: Bell
 };
 
-function DashboardSidebar({ mobileOpen, onNavigate }) {
+function DashboardSidebar({ mobileOpen, onNavigate, role }) {
   const location = useLocation();
+  const navItems = getRoleNavItems(role);
 
   return (
     <aside
@@ -75,14 +81,25 @@ function DashboardSidebar({ mobileOpen, onNavigate }) {
 
         <div className="mt-auto rounded-[24px] border border-border/80 bg-secondary/55 p-5">
           <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Recruiter workflow
+            {role === "admin"
+              ? "Admin command"
+              : role === "interviewer"
+                ? "Interviewer loop"
+                : "Recruiter workflow"}
           </div>
           <div className="mt-3 text-lg font-semibold text-foreground">
-            AI triage reduces screening time by 41%
+            {role === "admin"
+              ? "Cross-team hiring visibility in one place"
+              : role === "interviewer"
+                ? "Assigned interviews and feedback context"
+                : "AI triage reduces screening time by 41%"}
           </div>
           <p className="mt-2 text-sm">
-            Resume parsing, job drafting, and pipeline updates now build on the same
-            reusable dashboard shell.
+            {role === "admin"
+              ? "Oversee analytics, users, jobs, and candidate flow from a single command surface."
+              : role === "interviewer"
+                ? "Focus on candidate packets, interview notes, and timely loop execution."
+                : "Resume parsing, job drafting, and pipeline updates now build on the same reusable dashboard shell."}
           </p>
         </div>
       </div>

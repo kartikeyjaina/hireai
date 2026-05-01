@@ -4,6 +4,7 @@ import DashboardSidebar from "@/components/dashboard-sidebar";
 import PageTransition from "@/components/page-transition";
 import TopNav from "@/components/top-nav";
 import { useAuth } from "@/context/auth-context";
+import { canCreateJobs } from "@/lib/roles";
 import { useState } from "react";
 
 function DashboardShell() {
@@ -21,10 +22,12 @@ function DashboardShell() {
           <DashboardSidebar
             mobileOpen={sidebarOpen}
             onNavigate={closeSidebar}
+            role={user?.role}
           />
 
           <div className="min-w-0">
             <TopNav
+              canCreateJob={canCreateJobs(user?.role)}
               onCreateJob={() => navigate("/jobs")}
               onLogout={logout}
               onOpenSidebar={() => setSidebarOpen(true)}
